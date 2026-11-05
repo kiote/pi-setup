@@ -1,0 +1,39 @@
+{
+  "name": "pi-setup",
+  "version": "0.1.0",
+  "description": "Pi package with guard extensions, prompt addendums, skills, and helper scripts from a personal pi setup.",
+  "license": "MIT",
+  "author": "kiote",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kiote/pi-setup.git"
+  },
+  "homepage": "https://github.com/kiote/pi-setup#readme",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": []
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "files": [
+    "extensions",
+    "skills",
+    "bin",
+    "addendums",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "bin/egm/NOTICE",
+    "!**/__pycache__",
+    "!**/*.bak*"
+  ]
+}

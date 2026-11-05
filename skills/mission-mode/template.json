@@ -1,0 +1,31 @@
+{
+  "goal": "Write a short summary of how the build of this repo works to out/build-summary.md (build steps, tools and versions, test commands, known problems, and open points).",
+  "acceptance": [
+    "The file out/build-summary.md exists and has these sections: Build steps, Tools and versions, Tests, Known problems, Open points.",
+    "Build steps: each step names the exact command and the file that defines it (for example package.json, Makefile, or a CI workflow), with the file path.",
+    "Tools and versions: each tool has the version from a file in the repo (with the file path), or 'unknown; ask a maintainer'.",
+    "Tests: the section lists each test command with the file that defines it, and states if you ran it and the result.",
+    "Known problems: each item links an issue, a commit, or a file and line. Items with no source are moved to Open points.",
+    "Open points: the section lists unproved claims and next steps (owner 'not assigned' unless a source names an owner).",
+    "The file has at most 400 words. It contains no vague words such as 'various', 'several', or 'etc' in place of exact facts."
+  ],
+  "constraints": [
+    "Read-only for external systems: do not post, push, or send any message, issue comment, or email.",
+    "Write only to out/build-summary.md and to scratch files under out/mission_raw/. Do not edit other files in the repo.",
+    "Search only with rg and a scoped path. Do not search the repo root with du, ls -R, or grep -r.",
+    "Put timeout 60 on slow commands. Save partial output to out/mission_raw/ before you continue.",
+    "Do not fill an owner field with the user name. Write 'not assigned' when no source names an owner.",
+    "Do not include tokens, secrets, or credentials in any output file."
+  ],
+  "instructions": "Sources to use, in this order: (1) README and docs in the repo. (2) Build files: package.json, Makefile, CI workflow files. (3) git log for recent build changes. (4) Past sessions: use the session-search skill for 'build' and the repo name. Record a mission_report progress checkpoint after each source. If a source fails, record the error in the output file and continue with the next source; report blocked only if no source can be read. With checks [] completion goes to human review: read the output and check each acceptance item yourself.",
+  "progressFile": ".pi/build-summary/PROGRESS.md",
+  "checks": [],
+  "limits": {
+    "maxMinutes": 60,
+    "maxTurns": 120,
+    "maxContinuations": 20,
+    "maxConsecutiveNoProgress": 6,
+    "checkTimeoutSeconds": null
+  },
+  "policies": { "noProgress": "reassess" }
+}

@@ -1,0 +1,162 @@
+[
+  {
+    "name": "pr4153:5",
+    "expected": null,
+    "messages": [
+      {
+        "role": "user",
+        "text": "what is with https://github.com/acme/app/pull/4153 pr"
+      },
+      {
+        "role": "assistant",
+        "text": "[PR #4153](https://github.com/acme/app/pull/4153) is **open and blocked**, not merged.\n\n- **Change:** One documentation row for the new test suite.\n- **Review:** No open threads. The branch rules require one approval from the `docs` team.\n- **Tests:** The last CI run failed with **3 failures**. The recorded test data no longer matches `docs/guide.md`.\n\nI updated the local PR note. I made no remote changes."
+      },
+      {
+        "role": "user",
+        "text": "it has some failed checks?"
+      },
+      {
+        "role": "assistant",
+        "text": "Yes. **Two checks failed:**\n\n1. `unit-tests`: stale recorded test data, **3 failures**.\n2. `required-checks`: failed because `unit-tests` failed.\n\nThe first check is the source failure."
+      },
+      {
+        "role": "user",
+        "text": "can you fix em"
+      },
+      {
+        "role": "assistant",
+        "text": "Fixed locally in commit `abc1234`.\n\n- Updated the recorded test data for `docs/guide.md`.\n- Rebased the branch on main.\n\n**Validation:** All 120 tests pass locally.\n\n**Nothing is pushed yet**, so GitHub still shows the old failures.\n\nI recommend pushing to [PR #4153](https://github.com/acme/app/pull/4153) with `my-account`, then checking CI. **Approve this push, with no merge?**"
+      }
+    ]
+  },
+  {
+    "name": "calendar:2",
+    "expected": "low-risk",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Task from a retrospective of an earlier session.\nDo: Give the build bot read access to the release calendar.\nWhy: The agent could not read the release dates (403).\nTarget repo: acme/app\nThis is a small task: do it without plan approval. Stop and ask me before a push, a pull request, a merge, a sent mail or message, or a delete.\nWhen the work is done and checked, mark this task done in the task list, then tell me what you did.\nIf I stop the task, or if you cannot do it, do not mark it."
+      },
+      {
+        "role": "user",
+        "text": "we can't do it, the calendar service has no read api"
+      },
+      {
+        "role": "assistant",
+        "text": "I stopped the task. I did not mark it done.\n\n**What I found before you stopped me:**\n- The bot token has no calendar scope, and the token tool has no option to request more scopes.\n- The calendar service has no other read endpoint.\n\n**Cleanup:** I deleted my two temp scripts in `C:/tmp`. I did not change any repo files.\n\nI can add one line to the build bot `SKILL.md` that says release dates are not available through an API. The next agent can then go directly to another source, such as the release page in the wiki. Do you want this note?"
+      }
+    ]
+  },
+  {
+    "name": "clipboard:5",
+    "expected": null,
+    "messages": [
+      {
+        "role": "user",
+        "text": "Task from a retrospective of an earlier session.\nDo: Add a clipboard skill that sets plain text by default and checks the clipboard from a separate process.\nWhy: This avoids repeated clipboard failures and wrong formats.\nTarget repo: acme/app\nThis is a small task: do it without plan approval. Stop and ask me before a push, a pull request, a merge, a sent mail or message, or a delete.\nWhen the work is done and checked, mark this task done in the task list, then tell me what you did."
+      },
+      {
+        "role": "assistant",
+        "text": "I added the clipboard skill, tested it, and marked the task done.\n\n**Files** (in acme/app, on a local branch, local commit `abc1234`, not pushed):\n- `skills/personal/clipboard/SKILL.md`: the rules (plain text by default, check from a separate process).\n- `skills/personal/clipboard/clip.ps1`: the script with `set` and `check` modes.\n\n**Test:** I ran four cases on the real clipboard. All gave the expected result.\n\nThe push and the PR to acme/app are still open. Do you want me to push the branch and open the PR with `my-account`?"
+      },
+      {
+        "role": "user",
+        "text": "idk if anyone else needs this skill"
+      },
+      {
+        "role": "assistant",
+        "text": "I think others do not need it yet, because the skill is for your own setup.\n\nChoose one option:\n\n1. **Keep it local only.** I delete the local commit, and the skill stays in your local skills folder.\n2. **Push it to your personal folder** (`skills/personal/clipboard`). Only you use it, but it has a backup.\n3. **Make it a team skill** (`.github/skills/clipboard`). This loads it for everyone. I do not recommend it until someone asks for it.\n\n**My recommendation: option 2.** Do you want me to push it and open the PR with `my-account`?"
+      },
+      {
+        "role": "user",
+        "text": "2"
+      },
+      {
+        "role": "assistant",
+        "text": "I opened the PR: **https://github.com/acme/app/pull/275**. It is not merged yet.\n\n- **Branch:** `user/clipboard-skill`, rebased on `origin/main`. It adds 2 files.\n- **State:** All checks passed. The merge state is `CLEAN`. There is no review yet.\n\nDo you approve the merge? If you say yes, I will merge the PR and delete the branch."
+      }
+    ]
+  },
+  {
+    "name": "mission:1",
+    "expected": "low-risk",
+    "messages": [
+      {
+        "role": "user",
+        "text": "i have feedback about mission-mode: the agent gives too vague answers (see the session about the release notes). can we review the extension and create a PR for it"
+      },
+      {
+        "role": "assistant",
+        "text": "I opened the PR, and its checks pass. The PR is not merged yet: https://github.com/acme/app/pull/2\n\n**What I found in the release notes session**\n- The mission passed its gate, but the answer had many general claims with no names or links.\n- **Cause:** The gate checked only the structure (headings, row counts, word limit).\n\n**What the PR changes**\n- **Prompt:** A new rule: each claim must give the exact name, ID, link, or number.\n- **Tests:** I added 4 tests. All tests pass.\n\n**Open points for you**\n- **Your skill:** Your own `mission-mode` skill and its `template.json` still suggest minimum row counts. Do you want me to update them to match the new guide? I recommend that I do this, because the skill writes the mission files.\n\nI added the PR row to `pr-index.md` and removed the temp worktree."
+      }
+    ]
+  },
+  {
+    "name": "mission:7",
+    "expected": "low-risk",
+    "messages": [
+      {
+        "role": "user",
+        "text": "i have feedback about mission-mode: the agent gives too vague answers (see the session about the release notes). can we review the extension and create a PR for it"
+      },
+      {
+        "role": "assistant",
+        "text": "I opened the PR, and its checks pass. The PR is not merged yet: https://github.com/acme/app/pull/2\n\n**Open points for you**\n- **Your skill:** Your own `mission-mode` skill and its `template.json` still suggest minimum row counts. Do you want me to update them to match the new guide? I recommend that I do this, because the skill writes the mission files.\n\nI added the PR row to `pr-index.md` and removed the temp worktree."
+      },
+      {
+        "role": "user",
+        "text": "yes do it"
+      },
+      {
+        "role": "assistant",
+        "text": "I updated the `mission-mode` skill. The skill is a personal file, so it has no PR.\n\n- A new section \"Acceptance criteria for documents\": give a maximum length, ask for exact items, and write \"unknown\" when a source has no fact.\n- `template.json`: I removed an old sentence. The JSON is still valid."
+      },
+      {
+        "role": "user",
+        "text": "so will you create PR to the initial repo"
+      },
+      {
+        "role": "assistant",
+        "text": "I already did this. PR #2 is in the original repo:\n\nhttps://github.com/acme/app/pull/2\n\nThe skill change is different. The skill is a local file, and it is not in a git repo. So it cannot have a PR.\n\nDo you mean a different repo, for example a team copy of the skill? If so, please give me the repo name."
+      },
+      {
+        "role": "user",
+        "text": "lgtm pls merge"
+      },
+      {
+        "role": "assistant",
+        "text": "PR #2 is merged into `main` as a squash commit (`abc1234`). I deleted the branch and updated the row in `pr-index.md`.\n\nYour installed copy of the extension does not have the merged change yet. It also has an old local patch in `src/verify.ts`, and upstream now has a better version of the same fix.\n\nIt is safe to remove the local patch, because upstream has a better version of the same fix. Do you want me to do the update? I recommend these steps:\n1. Run `git checkout -- src/verify.ts` to remove the local patch.\n2. Run `git pull --ff-only`.\n3. Restart pi.\n\nAfter the update, new missions get the new rule by default."
+      }
+    ]
+  },
+  {
+    "name": "auto:5",
+    "expected": null,
+    "messages": [
+      {
+        "role": "user",
+        "text": "Task from a retrospective of an earlier session.\nDo: Add an auto option to the task runner, so that small tasks start with no plan approval.\nWhy: This avoids manual plan approvals for small tasks.\nTarget repo: acme/app\nShow me the plan before you change shared files.\nWhen the work is done and checked, mark this task done in the task list, then tell me what you did."
+      },
+      {
+        "role": "assistant",
+        "text": "I read the task runner code. I did not change any files yet.\n\n## Decision for you: which tasks skip the plan approval\n| Option | How it works |\n|---|---|\n| **A. The model marks \"small\"** | Triage adds `size: small/large`. |\n| B. You choose for each start | Each row gets a second button. |\n| C. A and B | The model gives the default, and you can change it. |\n\n## Plan\n1. Add `size` to the triage and an `auto` value to the start request.\n2. Add a lock around the duplicate check.\n3. Update the tests and the README.\n4. **Push:** open a normal PR on `acme/app`. Merge it only after you approve the merge.\n\nPlease answer two questions:\n- Which option: A, B, or C? My default is C.\n- Do I open the PR and stop, or also merge it after the checks pass? My default is to open the PR and stop.\n\nThe task is not finished, so I did not mark it done."
+      },
+      {
+        "role": "user",
+        "text": "do it"
+      },
+      {
+        "role": "assistant",
+        "text": "I added the **auto** option to the task runner. I used option C, as you chose. I opened [acme/app#273](https://github.com/acme/app/pull/273). The PR is **not merged**. I marked the task done.\n\n## Checks\n- **Tests:** all 191 tests pass, including the new tests.\n\n## Still open\n- **Merge:** the running task runner uses the old code until you merge #273."
+      },
+      {
+        "role": "user",
+        "text": "so what now"
+      },
+      {
+        "role": "assistant",
+        "text": "Only one step is left: merge PR #273. The PR is open, its check passed, it has no comments, and it can be merged.\n\n**Option A (my default):** I do these steps for you:\n1. Merge #273.\n2. Pull `main` in your local clone.\n3. Restart the task runner.\n4. Remove this worktree and its branch.\n\n**Option B:** You review the PR first at https://github.com/acme/app/pull/273. Then tell me to do option A.\n\nAnswer \"A\" or \"B\"."
+      }
+    ]
+  }
+]

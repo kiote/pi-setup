@@ -1,0 +1,7 @@
+Persona files in this folder are copied without change from
+https://github.com/google/elephant-goldfish-model (commit 464db031e7dd1b9a79803ac8ea45f55c7c20c5bc, agents/ and resources/document_standards/).
+License: Apache-2.0, Copyright Google LLC. The full license text is in LICENSE in this folder
+(the same text as https://github.com/google/elephant-goldfish-model/blob/main/LICENSE).
+The upstream repository has no NOTICE file at that commit.
+
+source_checker.md is not from EGM. It is a local persona written on 2026-11-04 for goldfish-check.mjs.
