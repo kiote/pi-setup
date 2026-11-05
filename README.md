@@ -76,6 +76,28 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 - `read-after-write.mjs`: logic for `extensions/read-after-write.ts`. Test: `read-after-write-test.mjs` (Windows-only).
 - `wait-worktree.sh`: waits until a new git worktree is ready before the first read.
 
+## herdr-app mods (`herdr/`)
+
+`herdr/agent-folders/` is a layout with two mods for [herdr-app](https://herdr.dev), in the herdr share format:
+
+- `layouts/main-titles.json`: the herdr `main` layout with the two mods below.
+- `mods/agent-folders/`: the agents list in folders that you make (name, color, optional rules). Drag an agent to a folder, or right-click it. A manual choice is the terminal label `agentfolders.folder`.
+- `mods/pane-labels/`: a pane header that also shows the terminal label `pane.title`. Any tool sets it with `hc label <terminal> pane.title=<title>`.
+- `RECIPE.md`: the brief to build the layout and mods again. `NOTICE` and `LICENSE`: see below.
+
+To add them:
+
+1. Copy `herdr/agent-folders/layouts/main-titles.json` into `~/.config/herdr-app/layouts/`. Never overwrite a file. If the name is taken, rename the new file.
+2. Copy the two folders in `herdr/agent-folders/mods/` into `~/.config/herdr-app/mods/`. Never overwrite a folder. If a name is taken, rename the new folder, its `mod` names in the layout, and its own paths: the `mods/pane-labels/` icon paths in `pane-labels/main.js`, or the `MOD` constant in `agent-folders/main.js`.
+3. Check each mod: `herdr-app check ~/.config/herdr-app/mods/agent-folders` and `herdr-app check ~/.config/herdr-app/mods/pane-labels`.
+4. Show the layout: `herdr-app do layout.switch '{"name":"main-titles"}'`. `ctrl-shift-l` goes back to your layout.
+
+`agent-folders` runs a program: `hc label` (to keep the folder choice on the terminal). The mod makes no network calls itself. For an agent on another machine, `hc` writes the label on that machine. Both mods read icons from the shipped `workspace-chrome` mod.
+
+The folder has no `preview.png`, because a screenshot of a real window shows private names.
+
+The mods and the layout are modified copies of herdr-app files (`agents` and `pane` mods, `main` layout), Apache-2.0. See `herdr/agent-folders/NOTICE` and `herdr/agent-folders/LICENSE`.
+
 ## Configuration
 
 | Variable | Effect |

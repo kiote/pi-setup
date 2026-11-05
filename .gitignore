@@ -1,3 +1,6 @@
 node_modules/
 __pycache__/
 *.bak*
+gpui-kit.d.ts
+jsconfig.json
+*.error

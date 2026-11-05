@@ -1,0 +1,57 @@
+Agent folders for herdr-app
+https://github.com/kiote/pi-setup/tree/main/herdr/agent-folders
+
+This folder contains modified copies of files from herdr-app:
+https://github.com/herdrdev/herdr-app
+License: Apache License 2.0. The full license text is in LICENSE in this folder
+(the same text as https://github.com/herdrdev/herdr-app/blob/master/LICENSE).
+The upstream repository has no NOTICE file.
+
+The upstream files are at commit d5edc016feaca968ce5b6e9fa3cb53a6e93ddd75
+(the files that herdr-app 0.1.12 installed in ~/.config/herdr-app):
+- defaults/mods/agents/main.js
+- defaults/mods/pane/main.js and its five .svg icons
+- defaults/layouts/main.json
+
+Changes:
+
+mods/agent-folders/ (from the `agents` mod)
+- The list shows agents in folders that the user makes. Each folder has a
+  name, a color, optional rules and a folded state. The folders are in the
+  shared state key "agentFolders".
+- Group order: "Pinned", then each folder, then "Unsorted". The space groups
+  and the status sections (Needs you, Done, Working, Idle) are removed.
+- A manual folder choice is the terminal label "agentfolders.folder". The mod
+  writes it with the program `hc label`. Without a label, the first folder
+  with a matching rule gets the agent. Rules use the prefixes space:, cwd:,
+  app:, title: and tab:, the wildcard * and ~ for the home folder.
+- New: drag an agent to a folder, drag a folder header to move the folder,
+  a right-click menu for agents and folders, and a dialog to make or edit a
+  folder. The mod draws its own menus and dialog.
+- A colored bar on each agent row shows its folder color. The tree lines of
+  sub-agents and the left edge of the narrow rail use the same color.
+- The sort popup is replaced by one button: inside folders, sort by status
+  or keep the space order. A second button makes a new folder.
+- A row always shows "space · detail". The rule that hides duplicate details
+  is removed.
+- Folded sub-agents show "+N" on the row. The fold chevron is removed.
+  A click on the agent icon still folds and unfolds the sub-agents.
+- The migration of old pins (localStorage "pins") is removed.
+- The text for an empty list is shorter. The header and row sizes are a
+  little different.
+- Most comments are removed or shorter.
+
+mods/pane-labels/ (from the `pane` mod)
+- The header shows the terminal label "pane.title" after the agent name.
+  Set it with `hc label <terminal> pane.title=<title>`.
+- The icon paths point to mods/pane-labels/. The header comment and the
+  mod.json title are new.
+- The five .svg icons are unchanged copies. herdr-app says that the glyphs
+  in its shipped mods come from Lucide (ISC License, some icons MIT from
+  Feather). See defaults/icons/LICENSES.md and THIRD-PARTY-NOTICES in
+  herdr-app. A copy of the Lucide license is in LICENSE-Lucide.txt.
+
+layouts/main-titles.json (a clone of the `main` layout)
+- The agents block uses the mod "agent-folders" (was "agents").
+- The pane header uses the mod "pane-labels" (was "pane").
+- The clone has "cloned_from": {"name": "main", "version": "0.1.12"}.
