@@ -33,7 +33,7 @@
 - Before you publish, commit, or push a document for other people, fix or remove each unproved claim. Do not post on a PR without user approval.
 - At the start of a long task, state the goal in one line and list the prerequisites.
 - If the read tool reports an offset error, check the file with `wc -l` before you trust it.
-- If a task creates a new script and does not say where it must live, ask one short question.
+- Keep reusable tool source in a versioned repository. Use `kiote/pi-setup` for generic tools that belong to this package. Personal helper folders, such as `~/.pi/agent/bin`, hold installed copies, not source. Keep private and work-specific tools in a suitable private repository. If the repository is unclear, ask one short question. All existing push, PR, merge and publication approvals remain required; this rule grants no remote-write authority.
 - If a request does not state a default, infer it from the repo layout and state it.
 - Test a claim that a tool does not work on Windows before you report it as a blocker.
 - If a task has no done-when proof, state the proof you will check, and check it.

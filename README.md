@@ -55,7 +55,7 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 - `clipboard` (Windows-only): copies a file to the Windows clipboard and checks it. Files: `SKILL.md`, `clip.ps1`.
 - `mission-mode`: writes and starts a [pi-mission-mode](https://github.com/kiote/pi-mission-mode) mission. Files: `SKILL.md`, `template.json` (a neutral example mission).
 - `scratchpad`: a topic-based scratchpad for all sessions. Folder: `~/.pi/agent/scratchpad/` or `PI_SCRATCHPAD_DIR`.
-- `session-search`: finds past pi sessions by keywords and date. Files: `SKILL.md`, `search.py` (Python 3).
+- [`session-search`](skills/session-search/SKILL.md): finds past Pi and Copilot CLI sessions by keywords and date. Use `--output PATH` to save a UTF-8 text or JSON report to a new file, then read a bounded portion. Use `--pi-only` to exclude Copilot. Files: `SKILL.md`, [`search.py`](skills/session-search/search.py) (Python 3). See the [spec](specs/session-search-output.md).
 
 ## Scripts (`bin/`)
 
@@ -77,6 +77,7 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 - `pi-subagents-check.mjs`: checks that pi-subagents can start background children with the installed pi.
 - `pi-wt.mjs`: starts pi in a new sibling git worktree for each new session (see below).
 - `read-after-write.mjs`: logic for `extensions/read-after-write.ts`. Test: `read-after-write-test.mjs` (Windows-only).
+- `session-search-test.py`: synthetic tests for session search and UTF-8 file output. Both session roots use temporary fixtures.
 - `wait-worktree.sh`: waits until a new git worktree is ready before the first read.
 
 ## herdr-app mods (`herdr/`)
@@ -129,7 +130,8 @@ The mods and the layout are modified copies of herdr-app files (`agents`, `pane`
 | `PI_NO_SUBAGENTS_CHECK=1` | `pi-wt.mjs` does not run `pi-subagents-check.mjs --if-changed`. |
 | `PI_CHECK_MODEL` | Model for `pi-subagents-check.mjs --launch`. |
 | `PI_SCRATCHPAD_DIR` | Folder of the `scratchpad` skill. |
-| `PI_SESSIONS_DIR` | Sessions folder for `session-search`. Default: `~/.pi/agent/sessions`. |
+| `PI_SESSIONS_DIR` | Pi sessions folder for `session-search`. Default: `~/.pi/agent/sessions`. |
+| `COPILOT_SESSIONS_DIR` | Copilot CLI sessions folder for `session-search`. Default: `~/.copilot/session-state`. |
 | `BGRUN_FIRST_CHECK` | Seconds before the first status check after [`bgrun.sh start`](bin/bgrun.sh). Default: 60. |
 
 Changes to `PI_SETUP_ADDENDUMS` or to an addendum file apply after `/reload` or a restart.
@@ -243,6 +245,7 @@ files. Call the shell file with Bash, as in the examples above.
 Run from the package root:
 
 ```bash
+python -B bin/session-search-test.py
 node bin/ask-guard-test.mjs
 node bin/read-after-write-test.mjs   # Windows-only
 node bin/addendums-test.mjs
@@ -251,6 +254,10 @@ node bin/herdr-static-working-test.mjs
 node --test bin/git-safe-pull-discovery-test.mjs
 node bin/git-safe-pull-test.mjs
 ```
+
+The [session-search suite](bin/session-search-test.py) uses only synthetic Pi and Copilot sessions.
+It sets both session roots to temporary folders and removes the fixtures after each test.
+Link tests report a skip if the platform does not permit link creation.
 
 The package tests find pi through `PI_PACKAGE_ROOT` or `npm root -g`.
 On Windows, if Node cannot spawn `npm` or `npx`, use the existing preload:

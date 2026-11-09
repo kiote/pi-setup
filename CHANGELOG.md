@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0] - Unreleased
+
+### Added
+- `session-search --output PATH`: save text or JSON reports as UTF-8 with LF newlines.
+  The destination must be a new file in an existing folder. Stdout shows only its location.
+- Copilot CLI session search, client labels, resume commands and `--pi-only`.
+- Synthetic session-search tests and the [output spec](specs/session-search-output.md).
+
+### Changed
+- Session-search guidance uses a saved report and bounded file reads.
+- The generic script rule requires repository source and installed helper copies.
+  Private tools stay in private repositories. Publication approvals do not change.
+
 ## [0.5.0] - Unreleased
 
 ### Added
