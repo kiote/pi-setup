@@ -62,9 +62,10 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 - `addendums-test.mjs`: test for `extensions/addendums.ts`.
 - `ask-guard-test.mjs`: test for `extensions/ask-guard.ts`. It also runs `ask-guard-regression-test.mjs` (with `ask-guard-fixtures.json`) and `ask-guard-runtime-test.mjs` (real pi loader, fake model).
 - `bgrun.sh`: starts a long run in the background and waits for it in short steps (`start`, `wait`, `status`, `stop`).
-- `claim-check.mjs`: finds unsourced claims in a text file before you publish it. Used by `publish-guard.ts`, `clipboard`, and `mission-mode`.
+- [`claim-check.mjs`](bin/claim-check.mjs): checks text for claims that need source references before publication. Used by `publish-guard.ts`, `clipboard`, and `mission-mode`.
 - `edge-reaper.ps1` (Windows-only): stops orphan headless browsers that tests left behind.
 - `egm/`: review persona prompts for `goldfish-check.mjs` (third-party, see below): `comprehension.md`, `design_critic.md`, `zoom_out.md`, `source_checker.md` (local persona), `README.md`, `NOTICE`, `LICENSE`, and `resources/document_standards/` (`feature-spec-standard.md`, `heilmeier-standard.md`, `implementation-readiness-standard.md`, `re-implementation-standard.md`, `zoom-out-standard.md`).
+- `git-safe-pull.sh` and `git-safe-pull-discovery.mjs`: update a Git checkout. Default mode removes only supported local copies that equal the target. `--stash-local` also saves and restores local edits. See [Git safe pull](#git-safe-pull).
 - `goldfish-check.mjs`: review gate for mission `checks`. Runs one fresh-context pi with an EGM persona.
 - `goldfish-multi.mjs`: runs `goldfish-check.mjs` with more than one model in parallel. Test: `goldfish-multi.test.mjs`.
 - `herdr-static-working-test.mjs`: test for `extensions/herdr-static-working.ts`.
@@ -129,7 +130,7 @@ The mods and the layout are modified copies of herdr-app files (`agents`, `pane`
 | `PI_CHECK_MODEL` | Model for `pi-subagents-check.mjs --launch`. |
 | `PI_SCRATCHPAD_DIR` | Folder of the `scratchpad` skill. |
 | `PI_SESSIONS_DIR` | Sessions folder for `session-search`. Default: `~/.pi/agent/sessions`. |
-| `BGRUN_FIRST_CHECK` | Seconds before the first check of `bgrun.sh wait`. Default: 60. |
+| `BGRUN_FIRST_CHECK` | Seconds before the first status check after [`bgrun.sh start`](bin/bgrun.sh). Default: 60. |
 
 Changes to `PI_SETUP_ADDENDUMS` or to an addendum file apply after `/reload` or a restart.
 
@@ -159,6 +160,84 @@ alias pi='node ~/.pi/agent/git/github.com/kiote/pi-setup/bin/pi-wt.mjs'
 
 For a local install, use the local package path. To turn the worktree off for one run, set `PI_NO_WORKTREE=1`.
 
+## Git safe pull
+
+The source is in `bin/`. The [spec](specs/git-safe-pull.md) defines the limits.
+You do not need pi or a package install to use this helper.
+
+Requirements: Bash 4 or later (Git Bash on Windows), Node.js 18 or later, Git with
+`rev-parse --path-format=absolute` and `merge --no-overwrite-ignore`, and the usual
+Bash tools, including GNU `timeout`, `head`, `mktemp`, `cmp` and `wc`. Keep the two runtime
+files in the same folder. The helper finds the module beside the shell script.
+
+To restore the source from a fresh public clone:
+
+```bash
+git clone https://github.com/kiote/pi-setup.git
+cd pi-setup
+git rev-parse HEAD                    # Record the source commit.
+bash bin/git-safe-pull.sh -C /path/to/checkout --ff-only
+```
+
+Without `--stash-local`, the helper fetches, removes supported worktree-only copies
+that have the same bytes as the target, and runs `git pull` with your arguments.
+It keeps staged and differing content. This mode keeps the older line-based status
+parser; do not rely on it for names with newlines.
+
+To save local changes before a fast-forward update, use this exact option order:
+
+```bash
+bash bin/git-safe-pull.sh -C /path/to/checkout --stash-local --ff-only
+bash bin/git-safe-pull.sh -C /path/to/checkout --stash-local --ff-only --quiet origin main
+```
+
+`-C` is optional. Give both the remote and branch, or neither to use the upstream.
+Other options and refspecs are not accepted in this mode. The helper checks nested
+repositories, submodules, unfinished Git operations and the fetched target before
+cleanup or stash. It does not enter nested Git metadata. It also protects current
+and common Git metadata if these directories are inside the checkout. Discovery stops above
+10,000 directories, depth 64, or 30 seconds. A failed or incomplete scan stops the
+update. Ignored files stay outside the stash and must not be overwritten.
+
+The helper saves tracked, staged and untracked edits in a named stash. It prints
+the exact stash ID and a recovery command before it updates. It then applies that
+ID with `git stash apply --index`. It keeps this backup and all older stashes, even
+after success. Inspect the result before you remove a backup yourself.
+
+If the update or restore fails, inspect the output, `git status`, and the retained
+stash. A restore conflict can leave conflict entries. Do not apply the stash again
+until you inspect that state. Use the printed command for manual recovery; do not
+use `stash pop`, `reset --hard` or `clean` as a recovery shortcut.
+
+Run only when no other process changes the checkout. This helper is not a security
+sandbox. It does not promise atomic checks against concurrent filesystem changes
+or automatic recovery after termination.
+
+### Optional copy of only the runtime files
+
+Use an existing helper folder. First make a separate backup folder, then copy only
+these two files. Run this from the fresh clone. Replace the example paths:
+
+```bash
+helper_dir=/path/to/existing/helpers
+backup_dir=/path/to/new/helper-backup
+test -d "$helper_dir" && mkdir "$backup_dir" || exit 1
+for file in git-safe-pull.sh git-safe-pull-discovery.mjs; do
+  if test -e "$helper_dir/$file"; then
+    cp -p -- "$helper_dir/$file" "$backup_dir/$file" || exit 1
+  fi
+done
+git rev-parse HEAD > "$backup_dir/source-commit.txt" || exit 1
+for file in git-safe-pull.sh git-safe-pull-discovery.mjs; do
+  cp -- "bin/$file" "$helper_dir/$file" || exit 1
+  cmp -- "bin/$file" "$helper_dir/$file" || exit 1
+done
+```
+
+Do not install the whole package or change pi settings for this helper. Do not
+replace other files in the helper folder. Keep the backup until you check the new
+files. Call the shell file with Bash, as in the examples above.
+
 ## Tests
 
 Run from the package root:
@@ -169,9 +248,25 @@ node bin/read-after-write-test.mjs   # Windows-only
 node bin/addendums-test.mjs
 node bin/goldfish-multi.test.mjs
 node bin/herdr-static-working-test.mjs
+node --test bin/git-safe-pull-discovery-test.mjs
+node bin/git-safe-pull-test.mjs
 ```
 
-The tests find pi through `PI_PACKAGE_ROOT` or `npm root -g`.
+The package tests find pi through `PI_PACKAGE_ROOT` or `npm root -g`.
+On Windows, if Node cannot spawn `npm` or `npx`, use the existing preload:
+`node --import ./bin/npm-shell.mjs bin/ask-guard-test.mjs` (also for the other package tests).
+
+The [integration suite](bin/git-safe-pull-test.mjs) uses only generated repositories
+and local remotes. It loads runtime files from this checkout, not from an installed
+copy. Set `SAFE_PULL_TEST_BASH` or `SAFE_PULL_TEST_GIT` if these tools are not on PATH.
+Its fixtures and evidence use the system temporary folder. Set `SAFE_PULL_TEST_TMPDIR`
+and `SAFE_PULL_TEST_EVIDENCE` to other folders outside the repository if needed.
+Each integration subprocess has a 120-second limit. Failed integration runs keep
+evidence and fixtures; successful runs save evidence before cleanup.
+
+The [discovery suite](bin/git-safe-pull-discovery-test.mjs) uses the system temporary
+folder and removes its fixtures after each test, including failed tests. It does not
+use those environment variables. Unsupported link tests report a skip.
 
 ## Not included
 

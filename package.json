@@ -1,6 +1,6 @@
 {
   "name": "pi-setup",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Pi package with guard extensions, prompt addendums, skills, and helper scripts from a personal pi setup.",
   "license": "MIT",
   "author": "kiote",
@@ -33,6 +33,7 @@
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
+    "specs/git-safe-pull.md",
     "bin/egm/NOTICE",
     "!**/__pycache__",
     "!**/*.bak*"

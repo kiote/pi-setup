@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0] - Unreleased
+
+### Added
+- `git-safe-pull.sh`: the default duplicate-copy update and an opt-in fast-forward
+  update with a retained stash backup and exact-ID restore.
+- `git-safe-pull-discovery.mjs`: bounded, read-only discovery of nested repositories.
+  It excludes current and common Git metadata and stops before nested metadata.
+- Local-only tests, the generic spec, and fresh-clone recovery instructions.
+  Optional installation copies only the two runtime files, with backups first.
+
 ## [0.4.0] - 2026-11-09
 
 ### Added
