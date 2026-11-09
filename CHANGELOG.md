@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2026-11-09
+
+### Added
+- `herdr/taskbar-badge/`: source and build script for `hc-badge.exe` (Windows-only). It sets a dot on the
+  herdr-app taskbar button: orange for `blocked`, green for `done`, or no dot.
+
+### Changed
+- `agent-folders` runs `hc-badge` on Windows when the badge state changes. Without `hc-badge` on PATH, it
+  logs once and works as before.
+
 ## [0.3.0] - 2026-11-09
 
 ### Added

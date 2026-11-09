@@ -32,6 +32,11 @@ Left to right:
 The window has no system title bar. Around the cards is the `canvas` color. Terminal
 padding is 14px by 12px.
 
+**Taskbar dot** (Windows only): a 16px dot on the herdr-app taskbar button. Orange means an
+agent is blocked. Green means an agent is done and you did not look at it yet. No dot means
+neither. The dot has no number. Its accessibility text (for screen readers) says
+"<n> agent(s) need you" or "<n> agent(s) ready".
+
 **Agents list**, `chrome` background, 1px `border` line at the top, 13px text:
 
 - Header row, 41px: "Agents" (11.5px, medium, `dim`). On the right, two 14px icon buttons:
@@ -118,6 +123,12 @@ A done agent that you look at turns idle, but it keeps its place until you leave
 
 The list draws again each 30 seconds to update the times.
 
+Taskbar dot (Windows only): at each draw, the agents list counts the blocked and the done
+agents. Blocked wins over done. When the state or the count changes, the mod runs
+`hc-badge blocked <n>`, `hc-badge done <n>` or `hc-badge off`. It runs one call at a time.
+A change during a call is sent after that call ends. When a call fails, the mod tries again
+at a draw 30 seconds or more later. It uses no timer.
+
 Pane header: hover shows four buttons on the right: split right, split down, zoom (or
 unzoom) and close. A click on the header focuses the pane. Any tool can set the title:
 `hc label <terminal> pane.title=<title>`. `pane.title=` removes it.
@@ -157,7 +168,8 @@ It uses `agents`, `terminals`, `panes`, `focused`, `spaces`, `run`, `exec`, `the
 `shared`, `setShared`, `setAgentOrder`, `openOverlay`, `closeOverlay`, `props`, `window`,
 `layout`, `home` and `notify` from `herdr`, `InputState` and `Input` from `gpui-base`, and
 `localStorage`. Commands: `pane.focus`, `terminal.peek`, `terminal.pin`, `layout.resize`.
-Program: `exec("hc", ["label", <address>, "agentfolders.folder=<id>"])`. State:
+Program: `exec("hc", ["label", <address>, "agentfolders.folder=<id>"])`, and on Windows
+`exec("hc-badge", ["blocked" | "done", <n>])` or `exec("hc-badge", ["off"])`. State:
 `shared("agentFolders")` = `{ folders: [{ id, name, color, rules, folded }], sort:
 "status" | "space" }`. The time of each status change is in `localStorage` key `changed`.
 Icons: `check`, `spinner`, `pin`, `pin-off`, `chevron-down`, `chevron-right`, `clock`,
@@ -180,6 +192,11 @@ All three mods show the working icon without `.spin`, to save CPU on a machine w
 
 - `agent-folders` runs the program `hc` (`hc label`). The mod makes no network calls
   itself. For an agent on another machine, `hc` writes the label on that machine.
+- The taskbar dot needs `hc-badge.exe` on PATH (for example in `~/.local/bin`). Build it
+  from `herdr/taskbar-badge/` in pi-setup. Without it, the mod logs the error once and works
+  as before, with no dot. On macOS and Linux, the mod does not run `hc-badge`.
+- The dot can be out of date when the agents list is not drawn (a hidden sidebar), or after
+  Explorer restarts. The next status change sets it again.
 - Both mods read icons from the shipped `workspace-chrome` mod. If that mod is not there,
   the icons do not show.
 - A label write can fail (for example, the terminal is gone). Then a toast says

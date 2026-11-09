@@ -286,6 +286,41 @@ export default class AgentFolders extends View {
 
   // ---- list ----
 
+  // Taskbar dot (pi-setup SPEC v0.6): orange if an agent is blocked, else green if one is done.
+  // Runs `hc-badge` only when the state or count changes, one call at a time. Windows only.
+  badge(list) {
+    if (window()?.platform !== "windows") return;
+    const blocked = list.filter((a) => a.status === "blocked").length;
+    const done = list.filter((a) => a.status === "done").length;
+    const want = blocked ? ["blocked", String(blocked)] : done ? ["done", String(done)] : ["off"];
+    const key = want.join(" ");
+    if (key === this.badgeWant && key === this.badgeSent) return;
+    if (key === this.badgeWant && Date.now() - (this.badgeFailAt ?? 0) < 30000) return;
+    this.badgeWant = key;
+    if (!this.badgeBusy || Date.now() - this.badgeBusy > 35000) this.sendBadge();
+  }
+
+  async sendBadge() {
+    try {
+      while (this.badgeSent !== this.badgeWant) {
+        const key = this.badgeWant;
+        this.badgeBusy = Date.now();
+        let ok = false;
+        try {
+          const r = await exec("hc-badge", key.split(" "));
+          ok = r?.code === 0 || r?.code === 1;
+          if (!ok && !this.badgeWarned) { this.badgeWarned = true; console.log(`hc-badge exit ${r?.code}`); }
+        } catch (e) {
+          if (!this.badgeWarned) { this.badgeWarned = true; console.log(`hc-badge: ${e}`); }
+        }
+        if (!ok) { this.badgeFailAt = Date.now(); break; } // retried at a render 30 s or more later
+        this.badgeSent = key;
+      }
+    } finally {
+      this.badgeBusy = 0;
+    }
+  }
+
   track(list, now) {
     let dirty = false;
     for (const a of list) {
@@ -404,6 +439,7 @@ export default class AgentFolders extends View {
     const shown = focused()?.agent;
     const now = Date.now();
     this.track(list, now);
+    this.badge(list);
     this.hold(list);
     const urgency = new Map(list.map((a) => [a.address, Math.max(this.rank(a), ...this.tree(all, a.address).map((s) => RANK[kidStatus(s.t, this.listed)] ?? 0))]));
     const rankOf = (a) => urgency.get(a.address);

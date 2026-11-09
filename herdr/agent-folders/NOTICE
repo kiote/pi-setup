@@ -39,6 +39,10 @@ mods/agent-folders/ (from the `agents` mod)
   A click on the agent icon still folds and unfolds the sub-agents.
 - The working icon is static (no `.spin`). This saves CPU on a machine
   without a GPU.
+- New: on Windows, a dot on the taskbar button. It is orange when an agent
+  is blocked, else green when an agent is done. The mod runs the program
+  `hc-badge` (from herdr/taskbar-badge/ in pi-setup) only when the state
+  changes.
 - The migration of old pins (localStorage "pins") is removed.
 - The text for an empty list is shorter. The header and row sizes are a
   little different.

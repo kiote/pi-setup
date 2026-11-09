@@ -103,6 +103,8 @@ The folder has no `preview.png`, because a screenshot of a real window shows pri
 
 The mods and the layout are modified copies of herdr-app files (`agents`, `pane` and `tabs` mods, `main` layout), Apache-2.0. See `herdr/agent-folders/NOTICE` and `herdr/agent-folders/LICENSE`.
 
+`herdr/taskbar-badge/` (Windows-only): source and build script for `hc-badge.exe`. It puts a dot on the herdr-app taskbar button: orange when an agent is blocked, green when an agent is done. `agent-folders` runs it when it is on PATH. See `herdr/taskbar-badge/README.md`.
+
 ## Configuration
 
 | Variable | Effect |
