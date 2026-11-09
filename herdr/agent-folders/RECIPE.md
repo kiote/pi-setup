@@ -1,9 +1,10 @@
 # Agent folders
 
-The window is Herdr's `main` layout with two changes. In the left sidebar, the agents
+The window is Herdr's `main` layout with three changes. In the left sidebar, the agents
 list puts your agents in folders that you make. Each folder has a name and a color.
 You move an agent with a drag or a right-click, or a folder rule moves it for you.
 Each pane has a header that can show a title that a tool sets on the terminal.
+The working icons do not turn, so the window draws less often.
 
 This folder has no `preview.png`. A screenshot of a real window shows private names.
 
@@ -18,7 +19,8 @@ Left to right:
    - **Agents list** (`agent-folders`), see below.
    - Footer, 69px: the shipped `workspace-chrome` mod with `{ "footer": true }`.
 2. **Work area**:
-   - Tab bar, 42px: the shipped `tabs` mod. A drag on it moves the window.
+   - Tab bar, 42px: `tabs-static`, a clone of the shipped `tabs` mod with a static working
+     icon. A drag on it moves the window.
    - Body, 8px padding, 8px gap:
      - The panes of the shown tab. Each pane is a card: `background` color, 1px `border`
        line, 1px `accent` line when focused, 10px corners, 8px between cards. A single pane
@@ -63,14 +65,17 @@ to 260px), the label title (up to 420px), the folder (`~` for home, `dim`), the 
 
 Agent status in the agents list:
 
-- **working**: a 12px spinner (`spinner.svg`, one turn in 900ms), `working` color.
+- **working**: a 12px spinner icon (`spinner.svg`), `working` color. The icon does not turn.
+  A turning icon (`.spin`) draws the view again about 10 times a second. Without a GPU, each
+  draw costs CPU.
 - **blocked**: a 14px square with "!", `blocked` color on a `blocked` background at alpha `26`.
 - **done**: a 7px dot, `done` color.
 - **idle**: a 7px ring, `idle` color.
 - A sub-agent with `error` shows as blocked. A sub-agent with `done` shows as idle.
 
-Agent status in the pane header: working is the spinner, blocked is a "Needs you" pill,
-done is a 7px dot, idle has no mark.
+Agent status in the pane header: working is the static spinner icon, blocked is a "Needs you"
+pill, done is a 7px dot, idle has no mark. The tab bar also shows the static icon for a
+working tab.
 
 Agents list, mouse:
 
@@ -131,7 +136,7 @@ main 0.1.12). Root `row`, `canvas` background, `"titlebar": "none"`,
     `agents` block (weight 1, min 90) with mod `agent-folders`.
   - `sidebar-footer` block (px 69): mod `workspace-chrome`, props `{ "footer": true }`.
 - `work` column (not resizable):
-  - `tabs` block (px 42, `window_drag`): mod `tabs`.
+  - `tabs` block (px 42, `window_drag`): mod `tabs-static`.
   - `work-body` row (padding 8, gap 8):
     - `main` block: `{ "tab": "active" }` with `pane`: header mod `pane-labels` (height 30,
       position top, reveal always), background `background`, border 1 `border`, focus 1
@@ -164,6 +169,13 @@ Mod `mods/pane-labels/` (`mod.json`: `"place": "none"`), a pane header with
 `pane.zoom`, `pane.close`. Art: `close.svg`, `split-down.svg`, `split-right.svg`,
 `zoom.svg` and `unzoom.svg` in its folder, and `mods/workspace-chrome/spinner.svg`.
 
+Mod `mods/tabs-static/`, a clone of the shipped `tabs` mod (`mod.json`: `"place": "none"`,
+`"cloned_from": {"name": "tabs", "version": "0.1.12"}`). Two changes: the working icon has
+no `.spin(900)`, and the window button icons load from `mods/tabs-static/` (`win-min.svg`,
+`win-max.svg`, `win-restore.svg`, `win-close.svg`).
+
+All three mods show the working icon without `.spin`, to save CPU on a machine without a GPU.
+
 ## Watch out
 
 - `agent-folders` runs the program `hc` (`hc label`). The mod makes no network calls
@@ -185,12 +197,16 @@ Mod `mods/pane-labels/` (`mod.json`: `"place": "none"`), a pane header with
   list code is not used. The pane header shows "Needs you".
 - The narrow rail and the "»" button use `sidebar.width` and `sidebar.collapsed` in shared
   state, as the shipped `agents` mod does.
-- The layout expects the shipped mods `workspace-chrome`, `spaces`, `tabs`, `files`,
-  `changes` and `workspace-status`.
+- The layout expects the shipped mods `workspace-chrome`, `spaces`, `pane`, `files`,
+  `changes` and `workspace-status`. `tabs-static` reads `mods/pane/close.svg`.
+- `tabs-static` is a clone. herdr-app updates do not change it. Fixes in the shipped `tabs`
+  mod do not come to it. To get them, clone `tabs` again, remove `.spin(900)`, and change
+  the `mods/tabs/` icon paths to `mods/tabs-static/`.
+- The working icons do not turn. The working state shows only by the icon and its color.
 
 ## Done when
 
-- `herdr-app check` passes for `mods/agent-folders` and `mods/pane-labels`.
+- `herdr-app check` passes for `mods/agent-folders`, `mods/pane-labels` and `mods/tabs-static`.
 - `herdr-app do layout.switch '{"name":"main-titles"}'` shows the sidebar with "Agents" and
   the sort and "New folder" buttons.
 - "New folder" with the name "Test" and the rule `app:pi` adds a "Test" header, and a running

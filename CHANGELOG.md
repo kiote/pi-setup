@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0] - 2026-11-09
+
+### Added
+- Extension `herdr-static-working`: a static pi working indicator (one frame) in herdr-core terminals.
+  It runs only when `HC_TERMINAL_ID` is set. Test: `bin/herdr-static-working-test.mjs`.
+- `herdr/agent-folders/mods/tabs-static/`: a clone of the herdr-app `tabs` mod with a static working icon.
+
+### Changed
+- `agent-folders`, `pane-labels` and `tabs-static` show a static working icon (no `.spin`). This saves
+  CPU on a machine without a GPU.
+- `layouts/main-titles.json` uses the mod `tabs-static` (was `tabs`).
+
 ## [0.2.0] - 2026-11-05
 
 ### Added

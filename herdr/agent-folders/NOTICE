@@ -11,6 +11,7 @@ The upstream files are at commit d5edc016feaca968ce5b6e9fa3cb53a6e93ddd75
 (the files that herdr-app 0.1.12 installed in ~/.config/herdr-app):
 - defaults/mods/agents/main.js
 - defaults/mods/pane/main.js and its five .svg icons
+- defaults/mods/tabs/main.js, mod.json and its four win-*.svg icons
 - defaults/layouts/main.json
 
 Changes:
@@ -36,6 +37,8 @@ mods/agent-folders/ (from the `agents` mod)
   is removed.
 - Folded sub-agents show "+N" on the row. The fold chevron is removed.
   A click on the agent icon still folds and unfolds the sub-agents.
+- The working icon is static (no `.spin`). This saves CPU on a machine
+  without a GPU.
 - The migration of old pins (localStorage "pins") is removed.
 - The text for an empty list is shorter. The header and row sizes are a
   little different.
@@ -46,12 +49,20 @@ mods/pane-labels/ (from the `pane` mod)
   Set it with `hc label <terminal> pane.title=<title>`.
 - The icon paths point to mods/pane-labels/. The header comment and the
   mod.json title are new.
+- The working icon is static (no `.spin`).
 - The five .svg icons are unchanged copies. herdr-app says that the glyphs
   in its shipped mods come from Lucide (ISC License, some icons MIT from
   Feather). See defaults/icons/LICENSES.md and THIRD-PARTY-NOTICES in
   herdr-app. A copy of the Lucide license is in LICENSE-Lucide.txt.
 
+mods/tabs-static/ (a clone of the `tabs` mod)
+- The working icon is static (no `.spin`).
+- The window button icon paths point to mods/tabs-static/.
+- The mod.json has "cloned_from": {"name": "tabs", "version": "0.1.12"}.
+- The four .svg icons are unchanged copies.
+
 layouts/main-titles.json (a clone of the `main` layout)
 - The agents block uses the mod "agent-folders" (was "agents").
 - The pane header uses the mod "pane-labels" (was "pane").
+- The tabs block uses the mod "tabs-static" (was "tabs").
 - The clone has "cloned_from": {"name": "main", "version": "0.1.12"}.

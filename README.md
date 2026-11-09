@@ -34,6 +34,7 @@ Bash (Git Bash on Windows) for the `.sh` scripts.
 - `addendums.ts`: appends the selected files in `addendums/` to the system prompt. See `PI_SETUP_ADDENDUMS`.
 - `ask-guard.ts`: stops a run that ends with a permission question for a low-risk step, or with an offer of a step that the agent does not recommend. Log: `~/.pi/agent/logs/ask-guard.jsonl`.
 - `hc-session-label.ts`: tells herdr-app (`hc` CLI) which pi session file runs in its terminal. Runs only in a herdr-app terminal. The default `hc.exe` path is Windows-only; set `HC_EXE` on other systems.
+- `herdr-static-working.ts`: shows a static pi working indicator (one frame, no animation) in a herdr-core terminal. Runs only when `HC_TERMINAL_ID` is set.
 - `outbound-guard.ts`: stops agent code that can send email or post messages without a human click. With UI, it asks the user. Without UI, it blocks.
 - `publish-guard.ts`: runs `bin/claim-check.mjs` on a file before a clipboard copy or a command that matches `PI_PUBLISH_GUARD_PATTERN`.
 - `read-after-write.ts`: retries a `read` that fails because a parallel call still writes the file. It also changes Git Bash paths (`/tmp/...`, `/c/...`) to Windows paths (that part is for Windows). Log: `~/.pi/agent/logs/read-after-write.jsonl`.
@@ -66,6 +67,7 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 - `egm/`: review persona prompts for `goldfish-check.mjs` (third-party, see below): `comprehension.md`, `design_critic.md`, `zoom_out.md`, `source_checker.md` (local persona), `README.md`, `NOTICE`, `LICENSE`, and `resources/document_standards/` (`feature-spec-standard.md`, `heilmeier-standard.md`, `implementation-readiness-standard.md`, `re-implementation-standard.md`, `zoom-out-standard.md`).
 - `goldfish-check.mjs`: review gate for mission `checks`. Runs one fresh-context pi with an EGM persona.
 - `goldfish-multi.mjs`: runs `goldfish-check.mjs` with more than one model in parallel. Test: `goldfish-multi.test.mjs`.
+- `herdr-static-working-test.mjs`: test for `extensions/herdr-static-working.ts`.
 - `list-user-tasks.ps1` (Windows-only): lists scheduled tasks that are not Windows system tasks.
 - `mission-herdr.sh` (Windows-only, Git Bash `cygpath`; needs herdr): starts a mission in a new herdr tab.
 - `npm-shell.mjs` (Windows-only effect): preload that lets Node scripts run `npm`/`npx` without a shell.
@@ -78,25 +80,28 @@ These files are not prompt templates. `extensions/addendums.ts` loads them. The 
 
 ## herdr-app mods (`herdr/`)
 
-`herdr/agent-folders/` is a layout with two mods for [herdr-app](https://herdr.dev), in the herdr share format:
+`herdr/agent-folders/` is a layout with three mods for [herdr-app](https://herdr.dev), in the herdr share format:
 
-- `layouts/main-titles.json`: the herdr `main` layout with the two mods below.
+- `layouts/main-titles.json`: the herdr `main` layout with the three mods below.
 - `mods/agent-folders/`: the agents list in folders that you make (name, color, optional rules). Drag an agent to a folder, or right-click it. A manual choice is the terminal label `agentfolders.folder`.
 - `mods/pane-labels/`: a pane header that also shows the terminal label `pane.title`. Any tool sets it with `hc label <terminal> pane.title=<title>`.
+- `mods/tabs-static/`: a clone of the shipped `tabs` mod. herdr-app updates do not change it.
 - `RECIPE.md`: the brief to build the layout and mods again. `NOTICE` and `LICENSE`: see below.
+
+The working icons in the three mods are static. A turning icon draws the window again about 10 times a second, and without a GPU each draw costs CPU.
 
 To add them:
 
 1. Copy `herdr/agent-folders/layouts/main-titles.json` into `~/.config/herdr-app/layouts/`. Never overwrite a file. If the name is taken, rename the new file.
-2. Copy the two folders in `herdr/agent-folders/mods/` into `~/.config/herdr-app/mods/`. Never overwrite a folder. If a name is taken, rename the new folder, its `mod` names in the layout, and its own paths: the `mods/pane-labels/` icon paths in `pane-labels/main.js`, or the `MOD` constant in `agent-folders/main.js`.
-3. Check each mod: `herdr-app check ~/.config/herdr-app/mods/agent-folders` and `herdr-app check ~/.config/herdr-app/mods/pane-labels`.
+2. Copy the three folders in `herdr/agent-folders/mods/` into `~/.config/herdr-app/mods/`. Never overwrite a folder. If a name is taken, rename the new folder, its `mod` names in the layout, and its own paths: the `mods/pane-labels/` icon paths in `pane-labels/main.js`, the `mods/tabs-static/` icon paths in `tabs-static/main.js`, or the `MOD` constant in `agent-folders/main.js`.
+3. Check each mod: `herdr-app check ~/.config/herdr-app/mods/agent-folders`, `herdr-app check ~/.config/herdr-app/mods/pane-labels` and `herdr-app check ~/.config/herdr-app/mods/tabs-static`.
 4. Show the layout: `herdr-app do layout.switch '{"name":"main-titles"}'`. `ctrl-shift-l` goes back to your layout.
 
-`agent-folders` runs a program: `hc label` (to keep the folder choice on the terminal). The mod makes no network calls itself. For an agent on another machine, `hc` writes the label on that machine. Both mods read icons from the shipped `workspace-chrome` mod.
+`agent-folders` runs a program: `hc label` (to keep the folder choice on the terminal). The mod makes no network calls itself. For an agent on another machine, `hc` writes the label on that machine. The three mods read icons from shipped mods (`workspace-chrome`, and for `tabs-static` also `pane`, `files`, and `changes`).
 
 The folder has no `preview.png`, because a screenshot of a real window shows private names.
 
-The mods and the layout are modified copies of herdr-app files (`agents` and `pane` mods, `main` layout), Apache-2.0. See `herdr/agent-folders/NOTICE` and `herdr/agent-folders/LICENSE`.
+The mods and the layout are modified copies of herdr-app files (`agents`, `pane` and `tabs` mods, `main` layout), Apache-2.0. See `herdr/agent-folders/NOTICE` and `herdr/agent-folders/LICENSE`.
 
 ## Configuration
 
@@ -161,6 +166,7 @@ node bin/ask-guard-test.mjs
 node bin/read-after-write-test.mjs   # Windows-only
 node bin/addendums-test.mjs
 node bin/goldfish-multi.test.mjs
+node bin/herdr-static-working-test.mjs
 ```
 
 The tests find pi through `PI_PACKAGE_ROOT` or `npm root -g`.
