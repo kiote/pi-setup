@@ -199,13 +199,65 @@ if [ "${1:-}" = --stash-local ]; then
     done < "$tmp/status"
 
     saved=""
+    raw_backup=""
+    raw_paths=()
+    backup_untracked() {
+      local record path index=0
+      while IFS= read -r -d '' record; do
+        case "${record:0:2}" in
+          *R*|*C*) IFS= read -r -d '' path || fail_local "incomplete rename record"; continue ;;
+          '??') ;;
+          *) continue ;;
+        esac
+        path=${record:3}
+        [ -f "$path" ] && [ ! -L "$path" ] || continue
+        if [ -z "$raw_backup" ]; then
+          raw_backup=$(mktemp -d "$git_directory/git-safe-pull-raw.XXXXXXXX") || fail_local "cannot create raw backup"
+          echo "git-safe-pull: retained raw untracked backup: $raw_backup"
+          echo "git-safe-pull: raw paths.nul entries map to files 0, 1, ...; inspect before manual recovery"
+        fi
+        cp -p -- "$path" "$raw_backup/$index" || fail_local "raw backup copy failed: $path"
+        cmp -s -- "$path" "$raw_backup/$index" || fail_local "raw backup verification failed: $path"
+        printf '%s\0' "$path" >> "$raw_backup/paths.nul" || fail_local "cannot write raw backup manifest"
+        raw_paths+=("$path")
+        index=$((index + 1))
+      done < "$tmp/status"
+    }
+    restore_untracked() {
+      local path index=0
+      # Validate all destinations before restoring any bytes. An upstream addition
+      # belongs to the merge, even if a filter made stash apply accept its contents.
+      for path in "${raw_paths[@]}"; do
+        if [ ! -f "$path" ] || [ -L "$path" ]; then
+          echo "git-safe-pull: raw restore requires an existing regular file: $path" >&2
+          return 1
+        fi
+        local_git --literal-pathspecs ls-files -z -- "$path" > "$tmp/raw-tracked" || return 1
+        if [ -s "$tmp/raw-tracked" ]; then
+          echo "git-safe-pull: raw restore refuses tracked destination: $path" >&2
+          return 1
+        fi
+      done
+      for path in "${raw_paths[@]}"; do
+        if ! cp -p -- "$raw_backup/$index" "$path" || ! cmp -s -- "$raw_backup/$index" "$path"; then
+          echo "git-safe-pull: raw restore or verification failed: $path" >&2
+          return 1
+        fi
+        index=$((index + 1))
+      done
+    }
     recovery() {
       echo "git-safe-pull: retained backup $saved"
       echo "git-safe-pull: recovery in $(pwd): git stash apply --index $saved"
+      [ -z "$raw_backup" ] || echo "git-safe-pull: raw untracked bytes and paths.nul retained at: $raw_backup"
     }
     restore_local() {
       [ -n "$saved" ] || return 0
       if local_git stash apply --index "$saved"; then
+        if ! restore_untracked; then
+          recovery >&2
+          return 1
+        fi
         echo "git-safe-pull: restore succeeded; backup retained: $saved"
         return 0
       fi
@@ -215,6 +267,7 @@ if [ "${1:-}" = --stash-local ]; then
     }
     status_local || fail_local "cannot read status after duplicate cleanup"
     if [ -s "$tmp/status" ]; then
+      backup_untracked
       old=$(local_git rev-parse --verify -q refs/stash); old_status=$?
       case $old_status in 0|1) ;; *) fail_local "cannot read prior stash ID" ;; esac
       local_git stash push --include-untracked --message "git-safe-pull backup before $target"

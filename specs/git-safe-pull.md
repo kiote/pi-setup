@@ -62,6 +62,18 @@ The package includes the runtime files, tests and this spec. Use version `0.5.0`
 - A11: A package-content check includes both runtime files and the spec. A fresh checkout after merge runs the helper without the development worktree or a personal helper source.
 - A12: The local installed runtime files match the merged repository bytes. Keep installation backups and record the source commit. Do not enable an external caller until its local fixture check passes.
 
+## Untracked-byte preservation repair
+
+A Git stash is not a raw-byte backup: clean and checkout conversions can change an untracked file's line endings. In opt-in mode, retain verified raw copies of remaining untracked regular files before stashing, under a unique private directory in the worktree's Git metadata. Store a NUL-delimited path manifest whose entry order maps to numbered copies. Print the recovery location before mutation and retain it on both success and failure.
+
+After a successful stash apply, first validate that every saved path is still an untracked regular file. Only then restore its original bytes and mode and compare the result to the raw copy. A failed apply, invalid destination, failed copy or comparison must return failure, retain both backups and never overwrite a newly tracked upstream file. Preserve the existing staged/unstaged merge semantics; this repair does not promise raw-byte preservation for tracked files, change Git configuration, follow untracked symlinks, or automatically resolve conflicts. Default mode is unchanged. No publication or installation is implied by implementing this specification.
+
+- B1: Reproduce the old false-success result with an untracked LF file under `core.autocrlf=true`; retain the failing result.
+- B2: Preserve raw LF, CRLF, mixed endings, binary and empty files, including literal path characters, with conversions enabled and with explicit `text eol=crlf` attributes. Preserve untracked state and persistent configuration.
+- B3: Retain raw copies and their manifest after success, stash failure, update failure and apply conflict. On conflict, retain the upstream file and report failure rather than forcing raw restoration.
+- B4: A raw-backup or restoration error reports failure without a success message. Refuse missing, linked or newly tracked restoration destinations before writing any raw copies.
+- B5: Existing focused and full helper suites pass on the final revision; a fresh reviewer inspects the final diff and saved host-run evidence. Public source contains only generic code, documentation and synthetic fixtures.
+
 ## Plan
 1. Scout the public package layout, local candidate source and remaining metadata issue. Confirm a minimal read-only walker interface and split generic tests from private integration tests.
 2. One worker edits only the scoped files in an isolated worktree. Add regressions before implementation, preserve generic behavior, and use no external dependency.

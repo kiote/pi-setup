@@ -12,6 +12,7 @@ const MODULE = fileURLToPath(new URL('./git-safe-pull-discovery.mjs', import.met
 const BASE = process.env.SAFE_PULL_TEST_TMPDIR || tmpdir();
 const discoveryOnly = process.argv.includes('--discovery-only');
 const smokeOnly = process.argv.includes('--smoke-only');
+const bytesOnly = process.argv.includes('--bytes-only');
 mkdirSync(BASE, { recursive: true });
 const root = mkdtempSync(join(BASE, "safe-pull-fixture-"));
 const evidenceBase = process.env.SAFE_PULL_TEST_EVIDENCE || tmpdir();
@@ -80,6 +81,19 @@ const backup = (cwd, r, name) => {
   return match?.[1];
 };
 const noSuccess = (r, name) => ok(r.status !== 0 && !/git-safe-pull: OK/.test(r.stdout + r.stderr), `${name}: failure has no success message`, r.stdout + r.stderr);
+const rawBackup = (r, contents, name) => {
+  const location = (r.stdout + r.stderr).match(/retained raw untracked backup: ([^\r\n]+)/)?.[1];
+  ok(!!location && existsSync(location), `${name}: raw backup retained`);
+  if (!location || !existsSync(location)) return;
+  const manifest = join(location, "paths.nul");
+  ok(existsSync(manifest), `${name}: manifest retained`);
+  if (!existsSync(manifest)) return;
+  const paths = readFileSync(manifest, "utf8").split("\0").slice(0, -1);
+  for (const [path, bytes] of Object.entries(contents)) {
+    const index = paths.indexOf(path);
+    ok(index >= 0 && readFileSync(join(location, String(index))).equals(bytes), `${name}: raw recovery bytes for ${path}`);
+  }
+};
 const shim = (name, body) => {
   const dir = join(root, `shim-${name}`); mkdirSync(dir);
   const path = join(dir, "git"), log = join(dir, "calls.log").replace(/\\/g, "/");
@@ -124,7 +138,7 @@ try {
   const resolution = exec(BASH, ['-c', 'command -v git'], root);
   if (resolution.status !== 0) throw new Error('Cannot resolve Git in Bash');
   realGit = resolution.stdout.replace(/\r?\n$/, '');
-  if (!discoveryOnly) {
+  if (!discoveryOnly && !bytesOnly) {
   const up = join(root, "up"), a = join(root, "a"), w = join(root, "w");
   git(root, "init", "-q", "--bare", "-b", "main", up);
   git(root, "clone", "-q", up, w);
@@ -170,6 +184,65 @@ try {
 
   }
   if (!discoveryOnly && !smokeOnly) {
+  for (const attributes of [false, true]) {
+    const f = fixture(`raw-bytes-${attributes}`), target = advance(f);
+    git(f.a, "config", "core.autocrlf", "true");
+    if (attributes) put(f.a, ".git/info/attributes", "*.txt text eol=crlf\n");
+    const config = text(f.a, ".git/config");
+    const contents = {
+      "notes [lf].txt": Buffer.from("one\ntwo\n"),
+      "notes crlf.txt": Buffer.from("one\r\ntwo\r\n"),
+      "mixed.txt": Buffer.from("one\ntwo\r\n"),
+      "binary.dat": Buffer.from([0, 10, 13, 255]),
+      "empty.txt": Buffer.alloc(0),
+    };
+    for (const [path, bytes] of Object.entries(contents)) put(f.a, path, bytes);
+    const result = opt(f.a);
+    ok(result.status === 0 && head(f.a) === target, `raw bytes ${attributes}: update succeeds`, result.stdout + result.stderr);
+    for (const [path, bytes] of Object.entries(contents)) {
+      ok(readFileSync(join(f.a, path)).equals(bytes), `raw bytes ${attributes}: preserves ${path}`);
+      ok(git(f.a, "ls-files", "--", path) === "", `raw bytes ${attributes}: remains untracked ${path}`);
+    }
+    ok(text(f.a, ".git/config") === config, `raw bytes ${attributes}: persistent settings unchanged`);
+    rawBackup(result, contents, `raw bytes ${attributes}`);
+  }
+  for (const failure of ["stash", "merge", "conflict", "missing", "tracked", "copy"]) {
+    const f = fixture(`raw-failure-${failure}`);
+    git(f.a, "config", "core.autocrlf", "true");
+    const contents = { "a.txt": Buffer.from("original\n"), "z.txt": Buffer.from("last\n") };
+    for (const [path, bytes] of Object.entries(contents)) put(f.a, path, bytes);
+    const target = advance(f, failure === "conflict" ? { "a.txt": "upstream different\n" } : undefined);
+    const before = head(f.a);
+    let injected = {};
+    if (failure === "stash" || failure === "merge") {
+      injected = shim(`raw-${failure}`, `if [[ " $* " == *" ${failure === "stash" ? "stash push" : "merge"} "* ]]; then echo "fixture ${failure} failure" >&2; exit 74; fi`);
+    } else if (failure === "missing" || failure === "tracked") {
+      injected = shim(`raw-${failure}`, `if [[ " $* " == *" stash apply "* ]]; then '${realGit}' "$@" || exit $?; ${failure === "missing" ? "rm -- z.txt" : `'${realGit}' add -- z.txt`}; exit $?; fi`);
+    } else if (failure === "copy") {
+      injected = discoveryShim("raw-copy", "cp", 'if [[ "$*" == *git-safe-pull-raw* ]] && [[ "${@: -1}" == a.txt ]]; then echo "fixture raw restore copy failure" >&2; exit 74; fi\nexec /usr/bin/cp "$@"');
+    }
+    const result = pullWith(f.a, ["--stash-local", "--ff-only"], injected);
+    noSuccess(result, `raw ${failure}`);
+    rawBackup(result, contents, `raw ${failure}`);
+    if (failure === "stash" || failure === "merge") {
+      ok(head(f.a) === before && readFileSync(join(f.a, "a.txt")).equals(contents["a.txt"]), `raw ${failure}: preserves original state`);
+    } else if (failure === "conflict") {
+      ok(head(f.a) === target && git(f.a, "show", "HEAD:a.txt") === "upstream different\n" && text(f.a, "a.txt").replace(/\r\n/g, "\n") === "upstream different\n", "raw conflict: upstream bytes not overwritten");
+    } else if (failure === "missing" || failure === "tracked") {
+      ok(text(f.a, "a.txt") === "original\r\n", `raw ${failure}: validates all destinations before raw writes`);
+      ok(result.stderr.includes(failure === "missing" ? "existing regular file" : "tracked destination"), `raw ${failure}: explicit refusal`);
+    } else {
+      ok(result.stderr.includes("raw restore or verification failed"), "raw copy: explicit failure");
+    }
+  }
+  const f = fixture("raw-backup-copy-failure"); advance(f); put(f.a, "note.txt", "original\n");
+  const before = snapshot(f.a);
+  const injected = discoveryShim("raw-backup-copy", "cp", 'echo "fixture raw backup copy failure" >&2; exit 74');
+  const result = pullWith(f.a, ["--stash-local", "--ff-only"], injected);
+  noSuccess(result, "raw backup copy");
+  ok(result.stderr.includes("raw backup copy failed") && snapshot(f.a) === before && text(f.a, "note.txt") === "original\n", "raw backup copy: fails before stash or update");
+  }
+  if (!discoveryOnly && !smokeOnly && !bytesOnly) {
   // restore: preserve the index and worktree separately. Keep every older stash.
   const f7 = fixture("ac7");
   put(f7.a, "keep.md", "older stash\n"); git(f7.a, "stash", "push", "-qm", "older"); const older = stashes(f7.a);
@@ -307,7 +380,7 @@ try {
   ok(/HEAD.*target/.test(noAdvanceResult.stderr) && /restore succeeded/.test(noAdvanceResult.stdout) && !/fast-forward succeeded/.test(noAdvanceResult.stdout), "merge postcondition: false update success is not reported");
   }
 
-  if (!smokeOnly) {
+  if (!smokeOnly && !bytesOnly) {
     // Each fault must precede duplicate cleanup and stash. Reuse an unchanged fixture.
     const f = fixture('discovery-faults'); advance(f);
     put(f.a, 'keep.md', 'prior stash\n'); git(f.a, 'stash', 'push', '-qm', 'prior');

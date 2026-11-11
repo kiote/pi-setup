@@ -206,10 +206,14 @@ the exact stash ID and a recovery command before it updates. It then applies tha
 ID with `git stash apply --index`. It keeps this backup and all older stashes, even
 after success. Inspect the result before you remove a backup yourself.
 
+Git filters can change the bytes in an untracked file during a stash round trip. Opt-in mode also saves raw copies of untracked regular files in a unique `git-safe-pull-raw.*` directory inside the worktree's Git metadata. It prints this location before stashing and retains it on success and failure. Its `paths.nul` manifest lists repository-relative paths, separated by NUL, in the order of the numbered backup files (`0`, `1`, ...). After a clean stash apply, the helper restores and verifies these original bytes and file modes, without changing Git configuration. Tracked edits still use Git's merge and conversion behavior; untracked symlinks are not copied by this additional safeguard.
+
 If the update or restore fails, inspect the output, `git status`, and the retained
 stash. A restore conflict can leave conflict entries. Do not apply the stash again
 until you inspect that state. Use the printed command for manual recovery; do not
 use `stash pop`, `reset --hard` or `clean` as a recovery shortcut.
+
+On a conflict, keep both the stash and raw backup. A raw restore refuses a missing, linked or newly tracked destination rather than overwriting upstream content. Inspect each manifest entry against the current tree before manually copying its numbered backup. Do not remove recovery files until you have checked the result.
 
 Run only when no other process changes the checkout. This helper is not a security
 sandbox. It does not promise atomic checks against concurrent filesystem changes
@@ -270,6 +274,8 @@ Its fixtures and evidence use the system temporary folder. Set `SAFE_PULL_TEST_T
 and `SAFE_PULL_TEST_EVIDENCE` to other folders outside the repository if needed.
 Each integration subprocess has a 120-second limit. Failed integration runs keep
 evidence and fixtures; successful runs save evidence before cleanup.
+
+Use `node bin/git-safe-pull-test.mjs --bytes-only` for the focused untracked-byte regressions, including explicit line-ending conversions and recovery failures.
 
 The [discovery suite](bin/git-safe-pull-discovery-test.mjs) uses the system temporary
 folder and removes its fixtures after each test, including failed tests. It does not
