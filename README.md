@@ -219,6 +219,8 @@ Run only when no other process changes the checkout. This helper is not a securi
 sandbox. It does not promise atomic checks against concurrent filesystem changes
 or automatic recovery after termination.
 
+On Windows, opt-in mode temporarily protects an active untracked subdirectory from Git stash cleanup, because the calling process can keep that directory open. The temporary file is excluded from the stash and removed before the update; no tracked keep-file or persistent ignore rule is added. Callers outside the target repository and ignored directories keep their existing behavior.
+
 ### Optional copy of only the runtime files
 
 Use an existing helper folder. First make a separate backup folder, then copy only

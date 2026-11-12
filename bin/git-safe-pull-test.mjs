@@ -13,6 +13,7 @@ const BASE = process.env.SAFE_PULL_TEST_TMPDIR || tmpdir();
 const discoveryOnly = process.argv.includes('--discovery-only');
 const smokeOnly = process.argv.includes('--smoke-only');
 const bytesOnly = process.argv.includes('--bytes-only');
+const subfolderOnly = process.argv.includes('--subfolder-only');
 mkdirSync(BASE, { recursive: true });
 const root = mkdtempSync(join(BASE, "safe-pull-fixture-"));
 const evidenceBase = process.env.SAFE_PULL_TEST_EVIDENCE || tmpdir();
@@ -138,7 +139,49 @@ try {
   const resolution = exec(BASH, ['-c', 'command -v git'], root);
   if (resolution.status !== 0) throw new Error('Cannot resolve Git in Bash');
   realGit = resolution.stdout.replace(/\r?\n$/, '');
-  if (!discoveryOnly && !bytesOnly) {
+  if (!discoveryOnly && !bytesOnly && !smokeOnly) {
+    const f = fixture('active-empty-subfolder'), target = advance(f);
+    put(f.a, 'keep.md', 'older stash\n'); git(f.a, 'stash', 'push', '-qm', 'older'); const older = stashes(f.a);
+    const original = text(f.a, 'local [edit].txt');
+    const staged = original.replace('line 2\n', 'staged 2\n'), unstaged = staged.replace('line 25\n', 'unstaged 25\n');
+    put(f.a, 'local [edit].txt', staged); git(f.a, 'add', '--', 'local [edit].txt'); put(f.a, 'local [edit].txt', unstaged);
+    git(f.a, 'mv', 'keep.md', 'renamed [keep].md');
+    git(f.a, 'rm', '-q', '.gitignore');
+    const contents = {
+      'notes [lf].txt': Buffer.from('one\ntwo\n'),
+      'nested/notes crlf.txt': Buffer.from('one\r\ntwo\r\n'),
+      'binary.dat': Buffer.from([0, 10, 13, 255]),
+    };
+    for (const [path, bytes] of Object.entries(contents)) put(f.a, path, bytes);
+    const before = {
+      status: git(f.a, 'status', '--porcelain=v1', '-z', '--untracked-files=all'),
+      diff: git(f.a, 'diff', '--binary'),
+      cached: git(f.a, 'diff', '--cached', '--binary'),
+    };
+    const active = join(f.a, 'sub'); mkdirSync(active);
+    const result = exec(BASH, ['-c', `exec bash ${[SCRIPT, '--stash-local', '--ff-only'].map(quote).join(' ')}`], active);
+    ok(result.status === 0 && head(f.a) === target, 'active empty subfolder: update succeeds', result.stdout + result.stderr);
+    const after = {
+      status: git(f.a, 'status', '--porcelain=v1', '-z', '--untracked-files=all'),
+      diff: git(f.a, 'diff', '--binary'),
+      cached: git(f.a, 'diff', '--cached', '--binary'),
+    };
+    ok(JSON.stringify(after) === JSON.stringify(before), 'active empty subfolder: staged, unstaged, delete, rename and untracked status restored');
+    for (const [path, bytes] of Object.entries(contents)) ok(readFileSync(join(f.a, path)).equals(bytes), `active empty subfolder: preserves bytes for ${path}`);
+    ok(existsSync(active), 'active empty subfolder: launch directory remains present');
+    backup(f.a, result, 'active empty subfolder');
+    ok(stashes(f.a).length === older.length + 1 && older.every((id) => stashes(f.a).includes(id)), 'active empty subfolder: older stashes retained');
+    const elsewhere = fixture('active-unrelated-directory'), elsewhereTarget = advance(elsewhere);
+    put(elsewhere.a, 'keep.md', 'local\n');
+    const unrelated = exec(BASH, ['-c', `exec bash ${[SCRIPT, '-C', elsewhere.a.replace(/\\/g, '/'), '--stash-local', '--ff-only'].map(quote).join(' ')}`], root);
+    ok(unrelated.status === 0 && head(elsewhere.a) === elsewhereTarget, 'active directory: unrelated caller remains supported', unrelated.stdout + unrelated.stderr);
+    const ignored = fixture('active-ignored-directory'), ignoredTarget = advance(ignored);
+    put(ignored.a, 'keep.md', 'local\n');
+    mkdirSync(join(ignored.a, 'ignored-dir'));
+    const ignoredResult = exec(BASH, ['-c', `exec bash ${[SCRIPT, '--stash-local', '--ff-only'].map(quote).join(' ')}`], join(ignored.a, 'ignored-dir'));
+    ok(ignoredResult.status === 0 && head(ignored.a) === ignoredTarget && text(ignored.a, 'keep.md') === 'local\n', 'active directory: ignored caller remains supported', ignoredResult.stdout + ignoredResult.stderr);
+  }
+  if (!discoveryOnly && !bytesOnly && !subfolderOnly) {
   const up = join(root, "up"), a = join(root, "a"), w = join(root, "w");
   git(root, "init", "-q", "--bare", "-b", "main", up);
   git(root, "clone", "-q", up, w);
@@ -183,7 +226,7 @@ try {
   ok(!/equal to upstream: keep\.md/.test(r3.stdout), "default literal: staged copy not touched");
 
   }
-  if (!discoveryOnly && !smokeOnly) {
+  if (!discoveryOnly && !smokeOnly && !subfolderOnly) {
   for (const attributes of [false, true]) {
     const f = fixture(`raw-bytes-${attributes}`), target = advance(f);
     git(f.a, "config", "core.autocrlf", "true");
@@ -242,7 +285,7 @@ try {
   noSuccess(result, "raw backup copy");
   ok(result.stderr.includes("raw backup copy failed") && snapshot(f.a) === before && text(f.a, "note.txt") === "original\n", "raw backup copy: fails before stash or update");
   }
-  if (!discoveryOnly && !smokeOnly && !bytesOnly) {
+  if (!discoveryOnly && !smokeOnly && !bytesOnly && !subfolderOnly) {
   // restore: preserve the index and worktree separately. Keep every older stash.
   const f7 = fixture("ac7");
   put(f7.a, "keep.md", "older stash\n"); git(f7.a, "stash", "push", "-qm", "older"); const older = stashes(f7.a);
@@ -380,7 +423,7 @@ try {
   ok(/HEAD.*target/.test(noAdvanceResult.stderr) && /restore succeeded/.test(noAdvanceResult.stdout) && !/fast-forward succeeded/.test(noAdvanceResult.stdout), "merge postcondition: false update success is not reported");
   }
 
-  if (!smokeOnly && !bytesOnly) {
+  if (!smokeOnly && !bytesOnly && !subfolderOnly) {
     // Each fault must precede duplicate cleanup and stash. Reuse an unchanged fixture.
     const f = fixture('discovery-faults'); advance(f);
     put(f.a, 'keep.md', 'prior stash\n'); git(f.a, 'stash', 'push', '-qm', 'prior');

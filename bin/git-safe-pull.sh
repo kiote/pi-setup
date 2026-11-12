@@ -7,6 +7,7 @@
 set -u
 export MSYS_NO_PATHCONV=1
 script_source=${BASH_SOURCE[0]}
+launch_directory=$PWD
 case "$script_source" in /*|[A-Za-z]:/*) ;; *) script_source="$PWD/$script_source" ;; esac
 # The sentinel keeps trailing newlines in Git paths. Remove only Git's final LF.
 git_path() {
@@ -86,7 +87,8 @@ if [ "${1:-}" = --stash-local ]; then
       [ ! -e "$resolved" ] || fail_local "unfinished Git state: $state_path"
     done
     tmp=$(mktemp -d) || fail_local "cannot create temporary folder"
-    trap 'rm -f -- "$tmp/"*; rmdir -- "$tmp"' EXIT
+    launch_guard=""
+    trap '[ -z "$launch_guard" ] || rm -f -- "$launch_guard"; rm -f -- "$tmp/"*; rmdir -- "$tmp"' EXIT
     local_git ls-files -u -z > "$tmp/unmerged" || fail_local "cannot check unresolved entries"
     [ ! -s "$tmp/unmerged" ] || fail_local "unresolved index entries"
     timeout 120 git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
@@ -223,6 +225,31 @@ if [ "${1:-}" = --stash-local ]; then
         index=$((index + 1))
       done < "$tmp/status"
     }
+    install_launch_guard() {
+      local path guard_name launch_root launch_prefix ignored
+      case "$OSTYPE" in msys*|cygwin*|win32*) ;; *) return 1 ;; esac
+      [ ! "$launch_directory" -ef "$repo_root" ] || return 1
+      launch_root=$(cd -- "$launch_directory" && git_path --show-toplevel 2>/dev/null) || return 1
+      [ "${launch_root%$'\001'}" -ef "$repo_root" ] || return 1
+      launch_prefix=$(cd -- "$launch_directory" && local_git rev-parse --show-prefix && printf '\001') ||
+        fail_local "cannot resolve active launch directory"
+      launch_prefix=${launch_prefix%$'\001'}; launch_prefix=${launch_prefix%$'\n'}
+      local_git check-ignore -q -- "$launch_prefix"; ignored=$?
+      case "$ignored" in 0) return 1 ;; 1) ;; *) fail_local "cannot check active directory ignore status" ;; esac
+      # A native Windows caller can keep its cwd open, so exclude one temporary
+      # file from stash cleanup to keep that directory nonempty.
+      guard_name=".git-safe-pull-active-$$-$RANDOM-$RANDOM"
+      launch_guard="$launch_directory/$guard_name"
+      ( set -o noclobber; : > "$launch_guard" ) || fail_local "cannot protect active launch directory"
+      path="$launch_prefix$guard_name"
+      [ "$repo_root/$path" -ef "$launch_guard" ] || fail_local "cannot identify active launch directory guard"
+      local_git check-ignore -q -- "$path"; ignored=$?
+      case "$ignored" in 0) return 1 ;; 1) ;; *) fail_local "cannot check launch guard ignore status" ;; esac
+      : > "$tmp/stash-paths" || fail_local "cannot create stash path list"
+      printf ':(top,glob)**\0:(top,exclude,literal)%s\0' "$path" > "$tmp/stash-paths" ||
+        fail_local "cannot write active launch directory pathspec"
+      return 0
+    }
     restore_untracked() {
       local path index=0
       # Validate all destinations before restoring any bytes. An upstream addition
@@ -270,8 +297,20 @@ if [ "${1:-}" = --stash-local ]; then
       backup_untracked
       old=$(local_git rev-parse --verify -q refs/stash); old_status=$?
       case $old_status in 0|1) ;; *) fail_local "cannot read prior stash ID" ;; esac
-      local_git stash push --include-untracked --message "git-safe-pull backup before $target"
+      if install_launch_guard; then
+        local_git stash push --include-untracked --pathspec-from-file=- \
+          --pathspec-file-nul --message "git-safe-pull backup before $target" < "$tmp/stash-paths"
+      else
+        local_git stash push --include-untracked --message "git-safe-pull backup before $target"
+      fi
       stash_status=$?
+      if [ -n "$launch_guard" ]; then
+        if rm -f -- "$launch_guard"; then
+          launch_guard=""
+        else
+          stash_status=1
+        fi
+      fi
       saved=$(local_git rev-parse --verify -q refs/stash) || fail_local "stash failed; no backup ID is available"
       [ -n "$saved" ] && [ "$saved" != "$old" ] || fail_local "stash did not create a new backup; update stopped"
       recovery
