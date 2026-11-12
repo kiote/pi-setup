@@ -279,6 +279,8 @@ evidence and fixtures; successful runs save evidence before cleanup.
 
 Use `node bin/git-safe-pull-test.mjs --bytes-only` for the focused untracked-byte regressions, including explicit line-ending conversions and recovery failures.
 
+Use `--subfolder-only` for active-directory preservation and collision checks. For a shorter full gate, run `--core-only` and `--discovery-only` separately; together they cover the same cases as the unfiltered integration suite, using independent fixtures.
+
 The [discovery suite](bin/git-safe-pull-discovery-test.mjs) uses the system temporary
 folder and removes its fixtures after each test, including failed tests. It does not
 use those environment variables. Unsupported link tests report a skip.

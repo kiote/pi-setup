@@ -14,6 +14,7 @@ const discoveryOnly = process.argv.includes('--discovery-only');
 const smokeOnly = process.argv.includes('--smoke-only');
 const bytesOnly = process.argv.includes('--bytes-only');
 const subfolderOnly = process.argv.includes('--subfolder-only');
+const coreOnly = process.argv.includes('--core-only');
 mkdirSync(BASE, { recursive: true });
 const root = mkdtempSync(join(BASE, "safe-pull-fixture-"));
 const evidenceBase = process.env.SAFE_PULL_TEST_EVIDENCE || tmpdir();
@@ -180,6 +181,23 @@ try {
     mkdirSync(join(ignored.a, 'ignored-dir'));
     const ignoredResult = exec(BASH, ['-c', `exec bash ${[SCRIPT, '--stash-local', '--ff-only'].map(quote).join(' ')}`], join(ignored.a, 'ignored-dir'));
     ok(ignoredResult.status === 0 && head(ignored.a) === ignoredTarget && text(ignored.a, 'keep.md') === 'local\n', 'active directory: ignored caller remains supported', ignoredResult.stdout + ignoredResult.stderr);
+    if (process.platform === 'win32') {
+      const collision = fixture('active-guard-collision'); advance(collision);
+      put(collision.a, 'keep.md', 'local\n');
+      put(collision.a, 'sub/.git-safe-pull-collision', 'pre-existing bytes\n');
+      const runtime = join(collision.dir, 'runtime'); mkdirSync(runtime);
+      const collisionScript = join(runtime, 'git-safe-pull.sh');
+      const source = readFileSync(SCRIPT, 'utf8');
+      const declaration = 'guard_name=".git-safe-pull-active-$$-$RANDOM-$RANDOM"';
+      if (!source.includes(declaration)) throw new Error('Guard collision fixture could not locate the name generator');
+      writeFileSync(collisionScript, source.replace(declaration, 'guard_name=".git-safe-pull-collision"'));
+      copyFileSync(MODULE, join(runtime, 'git-safe-pull-discovery.mjs'));
+      const prior = snapshot(collision.a);
+      const blocked = exec(BASH, ['-c', `exec bash ${[collisionScript.replace(/\\/g, '/'), '--stash-local', '--ff-only'].map(quote).join(' ')}`], join(collision.a, 'sub'));
+      noSuccess(blocked, 'active guard collision');
+      ok(existsSync(join(collision.a, 'sub/.git-safe-pull-collision')) && text(collision.a, 'sub/.git-safe-pull-collision') === 'pre-existing bytes\n', 'active guard collision: never removes an unowned file');
+      ok(snapshot(collision.a) === prior, 'active guard collision: repository state unchanged');
+    }
   }
   if (!discoveryOnly && !bytesOnly && !subfolderOnly) {
   const up = join(root, "up"), a = join(root, "a"), w = join(root, "w");
@@ -423,7 +441,7 @@ try {
   ok(/HEAD.*target/.test(noAdvanceResult.stderr) && /restore succeeded/.test(noAdvanceResult.stdout) && !/fast-forward succeeded/.test(noAdvanceResult.stdout), "merge postcondition: false update success is not reported");
   }
 
-  if (!smokeOnly && !bytesOnly && !subfolderOnly) {
+  if (!smokeOnly && !bytesOnly && !subfolderOnly && !coreOnly) {
     // Each fault must precede duplicate cleanup and stash. Reuse an unchanged fixture.
     const f = fixture('discovery-faults'); advance(f);
     put(f.a, 'keep.md', 'prior stash\n'); git(f.a, 'stash', 'push', '-qm', 'prior');

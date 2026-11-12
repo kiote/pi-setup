@@ -30,6 +30,7 @@ Without `--stash-local`, retain the prior helper behavior: fetch the target, rem
 8. On a returned update failure, attempt non-destructive restoration. On restoration conflict, stop with nonzero status, preserve conflict evidence and the backup, and print recovery guidance. Do not report success after either failure. A retained stash provides manual recovery after process termination; automatic termination recovery is not promised.
 9. Keep ignored files unstashed. Refuse their overwrite. Refuse remaining unstashable changes and protected-path updates. Do not change persistent Git configuration.
 10. On Windows, running from an otherwise empty untracked subdirectory must not make stash cleanup fail because the caller keeps that directory open. Preserve the active directory while stashing all actual status paths, without adding a tracked or persistent ignored keep-file.
+11. Temporary active-directory protection is owned only after exclusive creation succeeds. A name collision must stop without removing or overwriting the existing file. Callers outside the target repository and ignored directories must remain supported.
 
 ### Read-only discovery
 - Resolve the discovery module relative to the shell script, not a particular home or checkout path. Check Node.js and the module before worktree mutation.

@@ -239,8 +239,8 @@ if [ "${1:-}" = --stash-local ]; then
       # A native Windows caller can keep its cwd open, so exclude one temporary
       # file from stash cleanup to keep that directory nonempty.
       guard_name=".git-safe-pull-active-$$-$RANDOM-$RANDOM"
+      ( set -o noclobber; : > "$launch_directory/$guard_name" ) || fail_local "cannot protect active launch directory"
       launch_guard="$launch_directory/$guard_name"
-      ( set -o noclobber; : > "$launch_guard" ) || fail_local "cannot protect active launch directory"
       path="$launch_prefix$guard_name"
       [ "$repo_root/$path" -ef "$launch_guard" ] || fail_local "cannot identify active launch directory guard"
       local_git check-ignore -q -- "$path"; ignored=$?
