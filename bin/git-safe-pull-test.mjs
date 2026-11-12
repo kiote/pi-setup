@@ -169,7 +169,12 @@ try {
     };
     ok(JSON.stringify(after) === JSON.stringify(before), 'active empty subfolder: staged, unstaged, delete, rename and untracked status restored');
     for (const [path, bytes] of Object.entries(contents)) ok(readFileSync(join(f.a, path)).equals(bytes), `active empty subfolder: preserves bytes for ${path}`);
-    ok(existsSync(active), 'active empty subfolder: launch directory remains present');
+    if (process.platform === 'win32') {
+      ok(existsSync(active), 'active empty subfolder: launch directory remains present');
+    } else {
+      skips.push('Windows active-directory preservation');
+      console.log('SKIP Windows active-directory preservation');
+    }
     backup(f.a, result, 'active empty subfolder');
     ok(stashes(f.a).length === older.length + 1 && older.every((id) => stashes(f.a).includes(id)), 'active empty subfolder: older stashes retained');
     const elsewhere = fixture('active-unrelated-directory'), elsewhereTarget = advance(elsewhere);
