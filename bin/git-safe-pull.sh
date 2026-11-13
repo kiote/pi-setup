@@ -7,6 +7,7 @@
 set -u
 export MSYS_NO_PATHCONV=1
 script_source=${BASH_SOURCE[0]}
+launch_directory=$PWD
 case "$script_source" in /*|[A-Za-z]:/*) ;; *) script_source="$PWD/$script_source" ;; esac
 # The sentinel keeps trailing newlines in Git paths. Remove only Git's final LF.
 git_path() {
@@ -86,7 +87,8 @@ if [ "${1:-}" = --stash-local ]; then
       [ ! -e "$resolved" ] || fail_local "unfinished Git state: $state_path"
     done
     tmp=$(mktemp -d) || fail_local "cannot create temporary folder"
-    trap 'rm -f -- "$tmp/"*; rmdir -- "$tmp"' EXIT
+    launch_guard=""
+    trap '[ -z "$launch_guard" ] || rm -f -- "$launch_guard"; rm -f -- "$tmp/"*; rmdir -- "$tmp"' EXIT
     local_git ls-files -u -z > "$tmp/unmerged" || fail_local "cannot check unresolved entries"
     [ ! -s "$tmp/unmerged" ] || fail_local "unresolved index entries"
     timeout 120 git -c submodule.recurse=false -c fetch.recurseSubmodules=false \
@@ -199,13 +201,90 @@ if [ "${1:-}" = --stash-local ]; then
     done < "$tmp/status"
 
     saved=""
+    raw_backup=""
+    raw_paths=()
+    backup_untracked() {
+      local record path index=0
+      while IFS= read -r -d '' record; do
+        case "${record:0:2}" in
+          *R*|*C*) IFS= read -r -d '' path || fail_local "incomplete rename record"; continue ;;
+          '??') ;;
+          *) continue ;;
+        esac
+        path=${record:3}
+        [ -f "$path" ] && [ ! -L "$path" ] || continue
+        if [ -z "$raw_backup" ]; then
+          raw_backup=$(mktemp -d "$git_directory/git-safe-pull-raw.XXXXXXXX") || fail_local "cannot create raw backup"
+          echo "git-safe-pull: retained raw untracked backup: $raw_backup"
+          echo "git-safe-pull: raw paths.nul entries map to files 0, 1, ...; inspect before manual recovery"
+        fi
+        cp -p -- "$path" "$raw_backup/$index" || fail_local "raw backup copy failed: $path"
+        cmp -s -- "$path" "$raw_backup/$index" || fail_local "raw backup verification failed: $path"
+        printf '%s\0' "$path" >> "$raw_backup/paths.nul" || fail_local "cannot write raw backup manifest"
+        raw_paths+=("$path")
+        index=$((index + 1))
+      done < "$tmp/status"
+    }
+    install_launch_guard() {
+      local path guard_name launch_root launch_prefix ignored
+      case "$OSTYPE" in msys*|cygwin*|win32*) ;; *) return 1 ;; esac
+      [ ! "$launch_directory" -ef "$repo_root" ] || return 1
+      launch_root=$(cd -- "$launch_directory" && git_path --show-toplevel 2>/dev/null) || return 1
+      [ "${launch_root%$'\001'}" -ef "$repo_root" ] || return 1
+      launch_prefix=$(cd -- "$launch_directory" && local_git rev-parse --show-prefix && printf '\001') ||
+        fail_local "cannot resolve active launch directory"
+      launch_prefix=${launch_prefix%$'\001'}; launch_prefix=${launch_prefix%$'\n'}
+      local_git check-ignore -q -- "$launch_prefix"; ignored=$?
+      case "$ignored" in 0) return 1 ;; 1) ;; *) fail_local "cannot check active directory ignore status" ;; esac
+      # A native Windows caller can keep its cwd open, so exclude one temporary
+      # file from stash cleanup to keep that directory nonempty.
+      guard_name=".git-safe-pull-active-$$-$RANDOM-$RANDOM"
+      ( set -o noclobber; : > "$launch_directory/$guard_name" ) || fail_local "cannot protect active launch directory"
+      launch_guard="$launch_directory/$guard_name"
+      path="$launch_prefix$guard_name"
+      [ "$repo_root/$path" -ef "$launch_guard" ] || fail_local "cannot identify active launch directory guard"
+      local_git check-ignore -q -- "$path"; ignored=$?
+      case "$ignored" in 0) return 1 ;; 1) ;; *) fail_local "cannot check launch guard ignore status" ;; esac
+      : > "$tmp/stash-paths" || fail_local "cannot create stash path list"
+      printf ':(top,glob)**\0:(top,exclude,literal)%s\0' "$path" > "$tmp/stash-paths" ||
+        fail_local "cannot write active launch directory pathspec"
+      return 0
+    }
+    restore_untracked() {
+      local path index=0
+      # Validate all destinations before restoring any bytes. An upstream addition
+      # belongs to the merge, even if a filter made stash apply accept its contents.
+      for path in "${raw_paths[@]}"; do
+        if [ ! -f "$path" ] || [ -L "$path" ]; then
+          echo "git-safe-pull: raw restore requires an existing regular file: $path" >&2
+          return 1
+        fi
+        local_git --literal-pathspecs ls-files -z -- "$path" > "$tmp/raw-tracked" || return 1
+        if [ -s "$tmp/raw-tracked" ]; then
+          echo "git-safe-pull: raw restore refuses tracked destination: $path" >&2
+          return 1
+        fi
+      done
+      for path in "${raw_paths[@]}"; do
+        if ! cp -p -- "$raw_backup/$index" "$path" || ! cmp -s -- "$raw_backup/$index" "$path"; then
+          echo "git-safe-pull: raw restore or verification failed: $path" >&2
+          return 1
+        fi
+        index=$((index + 1))
+      done
+    }
     recovery() {
       echo "git-safe-pull: retained backup $saved"
       echo "git-safe-pull: recovery in $(pwd): git stash apply --index $saved"
+      [ -z "$raw_backup" ] || echo "git-safe-pull: raw untracked bytes and paths.nul retained at: $raw_backup"
     }
     restore_local() {
       [ -n "$saved" ] || return 0
       if local_git stash apply --index "$saved"; then
+        if ! restore_untracked; then
+          recovery >&2
+          return 1
+        fi
         echo "git-safe-pull: restore succeeded; backup retained: $saved"
         return 0
       fi
@@ -215,10 +294,23 @@ if [ "${1:-}" = --stash-local ]; then
     }
     status_local || fail_local "cannot read status after duplicate cleanup"
     if [ -s "$tmp/status" ]; then
+      backup_untracked
       old=$(local_git rev-parse --verify -q refs/stash); old_status=$?
       case $old_status in 0|1) ;; *) fail_local "cannot read prior stash ID" ;; esac
-      local_git stash push --include-untracked --message "git-safe-pull backup before $target"
+      if install_launch_guard; then
+        local_git stash push --include-untracked --pathspec-from-file=- \
+          --pathspec-file-nul --message "git-safe-pull backup before $target" < "$tmp/stash-paths"
+      else
+        local_git stash push --include-untracked --message "git-safe-pull backup before $target"
+      fi
       stash_status=$?
+      if [ -n "$launch_guard" ]; then
+        if rm -f -- "$launch_guard"; then
+          launch_guard=""
+        else
+          stash_status=1
+        fi
+      fi
       saved=$(local_git rev-parse --verify -q refs/stash) || fail_local "stash failed; no backup ID is available"
       [ -n "$saved" ] && [ "$saved" != "$old" ] || fail_local "stash did not create a new backup; update stopped"
       recovery

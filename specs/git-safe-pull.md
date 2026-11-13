@@ -29,6 +29,8 @@ Without `--stash-local`, retain the prior helper behavior: fetch the target, rem
 7. Apply the exact saved stash with `--index`. Preserve staged, unstaged and untracked state when Git can apply it cleanly. Do not use stash pop, stash drop, reset --hard, clean or forced conflict resolution.
 8. On a returned update failure, attempt non-destructive restoration. On restoration conflict, stop with nonzero status, preserve conflict evidence and the backup, and print recovery guidance. Do not report success after either failure. A retained stash provides manual recovery after process termination; automatic termination recovery is not promised.
 9. Keep ignored files unstashed. Refuse their overwrite. Refuse remaining unstashable changes and protected-path updates. Do not change persistent Git configuration.
+10. On Windows, running from an otherwise empty untracked subdirectory must not make stash cleanup fail because the caller keeps that directory open. Preserve the active directory while stashing all actual status paths, without adding a tracked or persistent ignored keep-file.
+11. Temporary active-directory protection is owned only after exclusive creation succeeds. A name collision must stop without removing or overwriting the existing file. Callers outside the target repository and ignored directories must remain supported.
 
 ### Read-only discovery
 - Resolve the discovery module relative to the shell script, not a particular home or checkout path. Check Node.js and the module before worktree mutation.
@@ -61,6 +63,18 @@ The package includes the runtime files, tests and this spec. Use version `0.5.0`
 - A10: A fresh correctness reviewer and a fresh private-data reviewer check the final diff and test evidence. The public diff and new commit history contain no private source, logs, credentials or internal references.
 - A11: A package-content check includes both runtime files and the spec. A fresh checkout after merge runs the helper without the development worktree or a personal helper source.
 - A12: The local installed runtime files match the merged repository bytes. Keep installation backups and record the source commit. Do not enable an external caller until its local fixture check passes.
+
+## Untracked-byte preservation repair
+
+A Git stash is not a raw-byte backup: clean and checkout conversions can change an untracked file's line endings. In opt-in mode, retain verified raw copies of remaining untracked regular files before stashing, under a unique private directory in the worktree's Git metadata. Store a NUL-delimited path manifest whose entry order maps to numbered copies. Print the recovery location before mutation and retain it on both success and failure.
+
+After a successful stash apply, first validate that every saved path is still an untracked regular file. Only then restore its original bytes and mode and compare the result to the raw copy. A failed apply, invalid destination, failed copy or comparison must return failure, retain both backups and never overwrite a newly tracked upstream file. Preserve the existing staged/unstaged merge semantics; this repair does not promise raw-byte preservation for tracked files, change Git configuration, follow untracked symlinks, or automatically resolve conflicts. Default mode is unchanged. No publication or installation is implied by implementing this specification.
+
+- B1: Reproduce the old false-success result with an untracked LF file under `core.autocrlf=true`; retain the failing result.
+- B2: Preserve raw LF, CRLF, mixed endings, binary and empty files, including literal path characters, with conversions enabled and with explicit `text eol=crlf` attributes. Preserve untracked state and persistent configuration.
+- B3: Retain raw copies and their manifest after success, stash failure, update failure and apply conflict. On conflict, retain the upstream file and report failure rather than forcing raw restoration.
+- B4: A raw-backup or restoration error reports failure without a success message. Refuse missing, linked or newly tracked restoration destinations before writing any raw copies.
+- B5: Existing focused and full helper suites pass on the final revision; a fresh reviewer inspects the final diff and saved host-run evidence. Public source contains only generic code, documentation and synthetic fixtures.
 
 ## Plan
 1. Scout the public package layout, local candidate source and remaining metadata issue. Confirm a minimal read-only walker interface and split generic tests from private integration tests.
